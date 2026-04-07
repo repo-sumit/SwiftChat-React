@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+  input, button, select, textarea {
+    font-family: 'Montserrat', sans-serif;
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+}
+
+[contenteditable]:empty:before {
+  content: attr(data-placeholder);
+  color: #B8C0CC;
+  pointer-events: none;
+  display: block;
+}
