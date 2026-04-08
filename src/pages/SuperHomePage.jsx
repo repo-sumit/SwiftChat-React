@@ -7,7 +7,6 @@ import {
   TrendingUp, Building2, Map, Brain,
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
-import Logo from '../components/Logo'
 import {
   STUDENTS, PERF_DATA, AT_RISK_STUDENTS, SCHOLARSHIP_DATA,
   DISTRICTS, STATE_SUMMARY, LEARNING_OUTCOMES, NAMO_LAXMI_APPS,
@@ -583,9 +582,14 @@ function VSKSidebar({ onNew, activeSession, onSelect, role, userProfile, onClose
       {/* Logo + new */}
       <div className="flex items-center justify-between px-4 py-4 border-b border-bdr-light">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-            <Logo size={18} />
-          </div>
+          <img
+            src="https://i.ibb.co/Xr1jqvd4/Logo-VSK-PNG.png"
+            alt="VSK Gujarat"
+            width={32}
+            height={32}
+            style={{ objectFit: 'contain', display: 'block' }}
+            draggable={false}
+          />
           <span className="font-bold text-[15px] text-txt-primary">VSK Gujarat</span>
         </div>
         <div className="flex items-center gap-1">
@@ -719,8 +723,15 @@ function WelcomeScreen({ botName, onChip, role }) {
 
       {/* Hero */}
       <div className="flex flex-col items-center text-center mb-8 mt-4">
-        <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center mb-3 shadow-modal">
-          <Logo size={28} />
+        <div className="mb-3">
+          <img
+            src="https://i.ibb.co/Xr1jqvd4/Logo-VSK-PNG.png"
+            alt="VSK Gujarat"
+            width={72}
+            height={72}
+            style={{ objectFit: 'contain', display: 'block' }}
+            draggable={false}
+          />
         </div>
         <h1 className="text-[26px] font-bold text-txt-primary mb-1.5">VSK 3.0</h1>
         <p className="text-[13px] text-txt-secondary max-w-[320px]">
