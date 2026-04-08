@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import {
-  Plus, Search, Upload, Paperclip, Send,
-  Download, X, Menu, ChevronDown, Sparkles,
+  Plus, Search, Send, Upload,
+  Download, X, Menu, Sparkles,
   CalendarCheck, BarChart3, ScanLine, Award, AlertTriangle,
   MessageSquare, FileText, UserRound, BookOpen, GraduationCap,
   TrendingUp, Building2, Map, Brain,
@@ -696,23 +696,8 @@ function VSKSidebar({ onNew, activeSession, onSelect, role, userProfile, onClose
         </div>
       </div>
 
-      {/* Bot list */}
-      <div className="px-3 pb-2">
-        <div className="text-[10px] font-bold text-txt-tertiary tracking-[0.8px] px-1 py-1">BOTS</div>
-        <div className="flex flex-col gap-0.5">
-          {bots.slice(0,4).map(b => (
-            <div key={b} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-surface-secondary cursor-pointer">
-              <div className="w-5 h-5 rounded-md bg-primary flex items-center justify-center flex-shrink-0">
-                <span className="text-white font-bold text-[9px]">V</span>
-              </div>
-              <span className="text-[12px] text-txt-secondary truncate">{b}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
       {/* History */}
-      <div className="flex-1 overflow-y-auto px-2 pb-2 border-t border-bdr-light pt-2">
+      <div className="flex-1 overflow-y-auto px-2 pb-2">
         {Object.entries(CHAT_HISTORY).map(([section, items]) => (
           <div key={section} className="mb-2">
             <div className="px-2 py-1.5 text-[10px] font-bold text-txt-tertiary tracking-[0.8px]">{section}</div>
@@ -745,7 +730,6 @@ function VSKSidebar({ onNew, activeSession, onSelect, role, userProfile, onClose
           <div className="text-[12px] font-semibold text-txt-primary truncate">{meta.name || meta.org}</div>
           <div className="text-[10px] text-txt-tertiary truncate">{meta.badge || meta.org}</div>
         </div>
-        <span className="text-[10px] font-bold bg-primary text-white px-2 py-0.5 rounded-full">PRO</span>
       </div>
     </div>
   )
@@ -965,12 +949,6 @@ function InputBar({ onSend, disabled, activeBot }) {
           style={{ minHeight: 44, maxHeight: 150 }}
         />
         <div className="flex items-center gap-2 px-3 pb-2.5">
-          <button className="flex items-center justify-center w-8 h-8 rounded-lg text-txt-tertiary hover:bg-surface-secondary transition-colors">
-            <Paperclip size={16} />
-          </button>
-          <button className="flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-txt-tertiary hover:bg-surface-secondary transition-colors text-[13px]">
-            <Search size={14} /> Search
-          </button>
           <div className="flex-1" />
           <button
             onClick={send}
@@ -1044,7 +1022,6 @@ export default function SuperHomePage() {
   const [artifact, setArtifact]     = useState(null)
   const [activeSession, setSession] = useState('VSK 3.0 Demo Session')
   const [sidebarOpen, setSidebar]   = useState(false)
-  const [showBotDrop, setBotDrop]   = useState(false)
   const bottomRef = useRef(null)
 
   useEffect(() => {
@@ -1266,33 +1243,9 @@ export default function SuperHomePage() {
             <Menu size={18} />
           </button>
 
-          <div className="relative">
-            <button
-              onClick={() => setBotDrop(v => !v)}
-              className="flex items-center gap-1.5 text-[14px] font-semibold text-txt-primary hover:bg-surface-secondary px-2.5 py-1.5 rounded-lg transition-colors"
-            >
-              {activeBot} <ChevronDown size={14} />
-            </button>
-            {showBotDrop && (
-              <div className="absolute top-full left-0 mt-1 bg-white border border-bdr rounded-xl shadow-modal z-20 min-w-[200px] py-1 animate-fade-in">
-                {bots.map(b => (
-                  <button
-                    key={b}
-                    onClick={() => { setActiveBot(b); setBotDrop(false) }}
-                    className={`w-full text-left px-4 py-2.5 text-[13px] hover:bg-surface-secondary transition-colors ${b === activeBot ? 'text-primary font-semibold' : 'text-txt-primary'}`}
-                  >
-                    {b}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <span className="text-[14px] font-semibold text-txt-primary">VSK Gujarat</span>
 
           <div className="flex-1" />
-
-          <button className="w-9 h-9 flex items-center justify-center rounded-lg text-txt-secondary hover:bg-surface-secondary transition-colors">
-            <Upload size={16} />
-          </button>
         </div>
 
         {/* Chat + artifact split */}
