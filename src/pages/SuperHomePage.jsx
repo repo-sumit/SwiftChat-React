@@ -4,29 +4,22 @@ import {
   Download, X, Menu, ChevronDown, Monitor, Sparkles,
   CalendarCheck, BarChart3, ScanLine, Award, AlertTriangle,
   MessageSquare, FileText, UserRound, BookOpen, GraduationCap,
-  TrendingUp, Building2,
+  TrendingUp, Building2, Map, Brain,
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import Logo from '../components/Logo'
+import {
+  STUDENTS, PERF_DATA, AT_RISK_STUDENTS, SCHOLARSHIP_DATA,
+  DISTRICTS, STATE_SUMMARY, LEARNING_OUTCOMES, NAMO_LAXMI_APPS,
+  SCHOOL_INFO,
+} from '../data/mockData'
+import { ROLE_BOTS, ROLE_SUGGESTIONS } from '../roles/roleConfig'
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MOCK DATA
+// CONSTANTS
 // ─────────────────────────────────────────────────────────────────────────────
-const SCHOOL = 'Sardar Patel Prathmik Shala'
-
-const STUDENTS = {
-  3:  [{ id:'STU-00101',name:'Aarav Shah' },{ id:'STU-00102',name:'Diya Patel' },{ id:'STU-00103',name:'Rohan Mehta' },{ id:'STU-00104',name:'Priya Joshi' },{ id:'STU-00105',name:'Kiran Desai' },{ id:'STU-00106',name:'Mira Thakor' }],
-  5:  [{ id:'STU-00201',name:'Pranav Desai' },{ id:'STU-00202',name:'Khushi Goel' },{ id:'STU-00203',name:'Charmi Desai' },{ id:'STU-00204',name:'Tanvi Jadeja' },{ id:'STU-00205',name:'Manan Patel' },{ id:'STU-00206',name:'Sneha Rathod' }],
-  6:  [{ id:'STU-00301',name:'Ravi Parmar' },{ id:'STU-00302',name:'Komal Patel' },{ id:'STU-00303',name:'Isha Jadeja' },{ id:'STU-00304',name:'Aryan Shah' },{ id:'STU-00305',name:'Nisha Thakor' },{ id:'STU-00306',name:'Dev Solanki' }],
-  8:  [{ id:'STU-00006',name:'Ravi Parmar' },{ id:'STU-00010',name:'Laksh Rathod' },{ id:'STU-00012',name:'Bhumi Patel' },{ id:'STU-00015',name:'Ananya Pandya' },{ id:'STU-00019',name:'Isha Jadeja' },{ id:'STU-00025',name:'Nisha Thakor' },{ id:'STU-00033',name:'Viraj Joshi' },{ id:'STU-00042',name:'Urvi Desai' },{ id:'STU-00048',name:'Ananya Sharma' },{ id:'STU-00050',name:'Isha Patel' }],
-}
-
-const PERF_DATA = {
-  3:  { math:72.1, sci:68.4, guj:65.3, students:[{ name:'Aarav Shah',m:80,s:72,g:68,lvl:'Proficient' },{ name:'Diya Patel',m:65,s:60,g:58,lvl:'Basic' },{ name:'Rohan Mehta',m:70,s:75,g:70,lvl:'Proficient' },{ name:'Priya Joshi',m:90,s:88,g:85,lvl:'Advanced' }] },
-  5:  { math:68.4, sci:69.2, guj:50.8, students:[{ name:'Pranav Desai',m:56,s:58,g:68,lvl:'Proficient' },{ name:'Khushi Goel',m:70,s:84,g:32,lvl:'Proficient' },{ name:'Charmi Desai',m:96,s:76,g:56,lvl:'Proficient' },{ name:'Tanvi Jadeja',m:44,s:82,g:58,lvl:'Proficient' },{ name:'Manan Patel',m:76,s:46,g:40,lvl:'Basic' }] },
-  6:  { math:75.0, sci:72.5, guj:68.0, students:[{ name:'Ravi Parmar',m:78,s:74,g:70,lvl:'Proficient' },{ name:'Komal Patel',m:62,s:65,g:60,lvl:'Basic' },{ name:'Isha Jadeja',m:88,s:85,g:80,lvl:'Advanced' }] },
-  8:  { math:80.2, sci:77.4, guj:72.1, students:[{ name:'Ravi Parmar',m:85,s:78,g:74,lvl:'Advanced' },{ name:'Laksh Rathod',m:72,s:80,g:68,lvl:'Proficient' },{ name:'Bhumi Patel',m:90,s:88,g:82,lvl:'Advanced' }] },
-}
+const SCHOOL = SCHOOL_INFO?.name || 'Sardar Patel Prathmik Shala'
+const TODAY = new Date().toLocaleDateString('en-GB',{ day:'2-digit',month:'2-digit',year:'numeric' }).replace(/\//g,'/')
 
 const CHAT_HISTORY = {
   TODAY:    ['VSK 3.0 Demo Session','Block attendance review','Grade 6 lesson planning'],
@@ -34,21 +27,14 @@ const CHAT_HISTORY = {
   'PREVIOUS 7 DAYS':['State KPI dashboard','Inspection readiness check'],
 }
 
-const BOTS = {
-  teacher:   ['VSK 3.0 Main','Shikshak Sahayak','Assessment Bot','Remediation Bot'],
-  principal: ['VSK 3.0 Main','School Monitor','Compliance Bot','Parent Connect'],
-  deo:       ['VSK 3.0 Main','District Analyst','Report Generator','Intervention Bot'],
-  parent:    ['VSK 3.0 Main','Parent Assistant'],
-}
-
+// Role metadata — reads from USER_PROFILES when available
 const ROLE_META = {
-  teacher:   { name:'Ms. Priya',   org:'Gujarat Education', badge:'Teacher'   },
-  principal: { name:'Mr. Rajesh',  org:'GPS Mehsana',        badge:'Principal' },
-  deo:       { name:'Mr. Amit',    org:'Ahmedabad District', badge:'DEO'       },
-  parent:    { name:'Suresh',      org:'Parent Portal',      badge:'Parent'    },
+  teacher:         { name:'Ms. Priya Mehta',  org:'GPS Mehsana',        badge:'Teacher'         },
+  principal:       { name:'Mr. Rakesh Joshi', org:'GPS Mehsana',        badge:'Principal'       },
+  deo:             { name:'Mr. Amit Trivedi', org:'Ahmedabad District', badge:'DEO'             },
+  state_secretary: { name:'Ms. Nidhi Shah',   org:'Gujarat Dept. Edu.', badge:'State Secretary' },
+  parent:          { name:'Meena Patel',       org:'Parent Portal',      badge:'Parent'          },
 }
-
-const TODAY = new Date().toLocaleDateString('en-GB',{ day:'2-digit',month:'2-digit',year:'numeric' }).replace(/\//g,'/')
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ARTIFACT BUILDERS  (return { title, icon, html })
@@ -62,12 +48,6 @@ function levelPill(lvl) {
   const map = { Advanced:'#dbeafe:#1d4ed8', Proficient:'#dbeafe:#1d4ed8', Basic:'#fff7ed:#c2410c', 'Below Basic':'#fee2e2:#991b1b' }
   const [bg,fg] = (map[lvl]||'#f3f4f6:#374151').split(':')
   return `<span style="background:${bg};color:${fg};padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600">${lvl}</span>`
-}
-function bar(pct, color='#3d5afe') {
-  return `<div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1">
-    <span style="font-size:12px;color:#666;font-weight:600">${pct}%</span>
-    <div style="width:100%;height:${Math.round(pct*1.2)}px;background:${color};border-radius:4px 4px 0 0"></div>
-  </div>`
 }
 
 function buildAttendanceArtifact(ctx) {
@@ -156,20 +136,6 @@ function buildPerformanceArtifact(ctx) {
     { name:'Science',    val:d.sci,  color:'#3d5afe' },
     { name:'Gujarati',   val:d.guj,  color:'#3d5afe' },
   ]
-  const barHtml = `
-    <div style="border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:16px">
-      <h4 style="font-size:14px;font-weight:700;margin:0 0 16px">Subject Averages</h4>
-      <div style="display:flex;gap:16px;align-items:flex-end;height:140px;padding:0 8px">
-        ${subjects.map(s=>`
-          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end">
-            <span style="font-size:12px;font-weight:600;color:#374151">${s.val}%</span>
-            <div style="width:100%;background:${s.color};border-radius:4px 4px 0 0" style="height:${Math.round(s.val)}px"></div>
-            <div style="width:100%;height:${Math.round(s.val * 1.0)}px;background:${s.color};border-radius:4px 4px 0 0;min-height:20px"></div>
-            <span style="font-size:11px;color:#9ca3af;text-align:center">${s.name}</span>
-          </div>`).join('')}
-      </div>
-    </div>`
-  // Better bar chart with fixed heights
   const maxH = 100
   const chartBars = subjects.map(s => {
     const h = Math.round((s.val / 100) * maxH)
@@ -179,7 +145,6 @@ function buildPerformanceArtifact(ctx) {
       <span style="font-size:11px;color:#9ca3af;margin-top:4px">${s.name}</span>
     </div>`
   }).join('')
-
   const tableRows = d.students.map(s => `
     <tr>
       <td style="padding:10px 8px;font-size:13px;font-weight:500">${s.name}</td>
@@ -188,7 +153,6 @@ function buildPerformanceArtifact(ctx) {
       <td style="padding:10px 8px;font-size:13px;text-align:center">${s.g}%</td>
       <td style="padding:10px 8px;text-align:center">${levelPill(s.lvl)}</td>
     </tr>`).join('')
-
   const html = `
     <div style="font-family:Inter,sans-serif;padding:0 4px">
       <h2 style="font-size:22px;font-weight:700;margin:0 0 4px">Class Performance</h2>
@@ -256,16 +220,17 @@ function buildReportCardArtifact(ctx) {
   return { title:'Report Card', icon:'📄', html }
 }
 
-function buildScholarshipArtifact(ctx) {
+function buildScholarshipArtifact() {
+  const schemes = SCHOLARSHIP_DATA || [
+    { name:'Namo Laxmi Yojana', eligible:28, applied:24, approved:20, color:'#8b5cf6' },
+    { name:'DBT Scholarship',   eligible:35, applied:30, approved:28, color:'#3d5afe' },
+    { name:'EWS Admission',     eligible:12, applied:10, approved:9,  color:'#059669' },
+  ]
   const html = `
     <div style="font-family:Inter,sans-serif;padding:0 4px">
       <h2 style="font-size:22px;font-weight:700;margin:0 0 4px">Scholarship Status</h2>
       <p style="color:#666;font-size:13px;margin:0 0 20px">${SCHOOL} · ${TODAY}</p>
-      ${[
-        { name:'Namo Laxmi Yojana', eligible:28, applied:24, approved:20, color:'#8b5cf6' },
-        { name:'DBT Scholarship',   eligible:35, applied:30, approved:28, color:'#3d5afe' },
-        { name:'EWS Admission',     eligible:12, applied:10, approved:9,  color:'#059669' },
-      ].map(s=>`
+      ${schemes.map(s=>`
         <div style="border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:12px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
             <h4 style="font-size:14px;font-weight:700;margin:0">${s.name}</h4>
@@ -283,11 +248,112 @@ function buildScholarshipArtifact(ctx) {
   return { title:'Scholarships', icon:'🏅', html }
 }
 
+function buildAtRiskArtifact() {
+  const students = AT_RISK_STUDENTS || []
+  const high = students.filter(s => s.risk === 'high')
+  const medium = students.filter(s => s.risk === 'medium')
+  const riskColor = r => r === 'high' ? '#dc2626' : '#d97706'
+  const riskBg = r => r === 'high' ? '#fee2e2' : '#fef3c7'
+  const rows = students.map(s => `
+    <div style="display:flex;align-items:center;padding:12px;border:1px solid #f3f4f6;border-radius:10px;margin-bottom:8px;gap:12px">
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:600;color:#111827">${s.name}</div>
+        <div style="font-size:12px;color:#6b7280;margin-top:2px">${s.reason || 'Low attendance'}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:12px;color:#6b7280">Att: <strong>${s.attendance}%</strong></div>
+        <span style="background:${riskBg(s.risk)};color:${riskColor(s.risk)};font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px">${s.risk?.toUpperCase()}</span>
+      </div>
+    </div>`).join('')
+  const html = `
+    <div style="font-family:Inter,sans-serif;padding:0 4px">
+      <h2 style="font-size:22px;font-weight:700;margin:0 0 4px">At-Risk Students</h2>
+      <p style="color:#666;font-size:13px;margin:0 0 16px">${SCHOOL} · ${TODAY}</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+        <div style="border:1px solid #fee2e2;border-radius:12px;padding:14px;background:#fff5f5">
+          <div style="font-size:11px;color:#dc2626;font-weight:700;margin-bottom:4px">HIGH RISK</div>
+          <div style="font-size:28px;font-weight:700;color:#dc2626">${high.length}</div>
+        </div>
+        <div style="border:1px solid #fde68a;border-radius:12px;padding:14px;background:#fffbeb">
+          <div style="font-size:11px;color:#d97706;font-weight:700;margin-bottom:4px">MEDIUM RISK</div>
+          <div style="font-size:28px;font-weight:700;color:#d97706">${medium.length}</div>
+        </div>
+      </div>
+      <div>${rows}</div>
+      <button style="width:100%;margin-top:8px;padding:12px;background:#3d5afe;color:white;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer">
+        📨 Send Parent Alerts for All High Risk
+      </button>
+    </div>`
+  return { title:'At-Risk Students', icon:'⚠️', html }
+}
+
+function buildNamoLaxmiArtifact() {
+  const apps = NAMO_LAXMI_APPS || []
+  const statusColor = s => ({ approved:'#16a34a', pending:'#d97706', rejected:'#dc2626' })[s] || '#374151'
+  const statusBg = s => ({ approved:'#dcfce7', pending:'#fef3c7', rejected:'#fee2e2' })[s] || '#f3f4f6'
+  const rows = apps.map(a => `
+    <div style="display:flex;align-items:center;padding:12px;border:1px solid #f3f4f6;border-radius:10px;margin-bottom:8px;gap:10px">
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:600">${a.name}</div>
+        <div style="font-size:11px;color:#9ca3af">App ID: ${a.appId}</div>
+        ${a.reason ? `<div style="font-size:11px;color:#ef4444;margin-top:2px">${a.reason}</div>` : ''}
+      </div>
+      <span style="background:${statusBg(a.status)};color:${statusColor(a.status)};font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;text-transform:capitalize">${a.status}</span>
+    </div>`).join('')
+  const approved = apps.filter(a=>a.status==='approved').length
+  const pending = apps.filter(a=>a.status==='pending').length
+  const html = `
+    <div style="font-family:Inter,sans-serif;padding:0 4px">
+      <h2 style="font-size:22px;font-weight:700;margin:0 0 4px">Namo Laxmi Yojana</h2>
+      <p style="color:#666;font-size:13px;margin:0 0 16px">${SCHOOL} · ${TODAY}</p>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">
+        ${[['Total',apps.length,'#374151'],['Approved',approved,'#16a34a'],['Pending',pending,'#d97706']].map(([l,v,c])=>`
+          <div style="border:1px solid #e5e7eb;border-radius:10px;padding:12px;text-align:center">
+            <div style="font-size:11px;color:#9ca3af">${l}</div>
+            <div style="font-size:22px;font-weight:700;color:${c}">${v}</div>
+          </div>`).join('')}
+      </div>
+      <div>${rows}</div>
+    </div>`
+  return { title:'Namo Laxmi', icon:'🌸', html }
+}
+
 function buildDashboardArtifact(ctx) {
   const scope = ctx.scope || 'school'
-  const kpis = scope === 'district'
-    ? [{ label:'Total Students',val:'24,831',color:'#3d5afe' },{ label:'Avg Attendance',val:'84.2%',color:'#16a34a' },{ label:'Avg Score',val:'71.4%',color:'#f97316' },{ label:'Scheme Rate',val:'78.6%',color:'#8b5cf6' }]
-    : [{ label:'Total Students',val:'342',color:'#3d5afe' },{ label:'Today Attendance',val:'88.3%',color:'#16a34a' },{ label:'Avg Score',val:'74.1%',color:'#f97316' },{ label:'Scheme Rate',val:'82.5%',color:'#8b5cf6' }]
+  let kpis, title, subtitle, trendData
+  if (scope === 'state') {
+    const s = STATE_SUMMARY || {}
+    kpis = [
+      { label:'Total Schools',   val: s.totalSchools?.toLocaleString() || '33,248', color:'#3d5afe' },
+      { label:'Total Students',  val: (s.totalStudents ? (s.totalStudents/1000000).toFixed(1)+'M' : '8.2M'), color:'#7c3aed' },
+      { label:'Avg Attendance',  val: (s.avgAttendance||85.4)+'%', color:'#16a34a' },
+      { label:'Scholarship Rate',val: (s.scholarshipRate||79.2)+'%', color:'#f97316' },
+    ]
+    title = 'State Dashboard — Gujarat'
+    subtitle = `Ministry of Education · ${TODAY}`
+    trendData = [82,84,83,86,85,87,88]
+  } else if (scope === 'district') {
+    const d = DISTRICTS?.[0] || {}
+    kpis = [
+      { label:'Total Schools',  val: d.schools?.toString() || '412',   color:'#3d5afe' },
+      { label:'Total Students', val: d.students?.toLocaleString() || '24,831', color:'#7c3aed' },
+      { label:'Avg Attendance', val: (d.attendance||84.2)+'%', color:'#16a34a' },
+      { label:'Scheme Rate',    val: (d.scholarshipRate||78.6)+'%', color:'#f97316' },
+    ]
+    title = 'District Dashboard — Ahmedabad'
+    subtitle = `District Education Office · ${TODAY}`
+    trendData = [80,83,82,85,84,86,87]
+  } else {
+    kpis = [
+      { label:'Total Students',   val:'342',   color:'#3d5afe' },
+      { label:'Today Attendance', val:'88.3%', color:'#16a34a' },
+      { label:'Avg Score',        val:'74.1%', color:'#f97316' },
+      { label:'Scheme Rate',      val:'82.5%', color:'#8b5cf6' },
+    ]
+    title = 'School Dashboard'
+    subtitle = `${SCHOOL} · ${TODAY}`
+    trendData = [82,86,84,88,85,87,88]
+  }
   const kpiHtml = kpis.map(k=>`
     <div style="border:1px solid #e5e7eb;border-radius:12px;padding:16px">
       <div style="font-size:11px;color:#9ca3af;margin-bottom:4px">${k.label}</div>
@@ -295,21 +361,64 @@ function buildDashboardArtifact(ctx) {
     </div>`).join('')
   const html = `
     <div style="font-family:Inter,sans-serif;padding:0 4px">
-      <h2 style="font-size:22px;font-weight:700;margin:0 0 4px">${scope==='district'?'District':'School'} Dashboard</h2>
-      <p style="color:#666;font-size:13px;margin:0 0 20px">${scope==='district'?'Ahmedabad District':SCHOOL} · ${TODAY}</p>
+      <h2 style="font-size:22px;font-weight:700;margin:0 0 4px">${title}</h2>
+      <p style="color:#666;font-size:13px;margin:0 0 20px">${subtitle}</p>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">${kpiHtml}</div>
       <div style="border:1px solid #e5e7eb;border-radius:12px;padding:16px">
         <h4 style="font-size:14px;font-weight:700;margin:0 0 12px">Attendance Trend (Last 7 Days)</h4>
         <div style="display:flex;gap:8px;align-items:flex-end;height:80px">
-          ${[82,86,84,88,85,87,88].map((v,i)=>`
+          ${trendData.map((v,i)=>`
             <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
               <div style="width:100%;height:${Math.round(v*0.8)}px;background:${i===6?'#3d5afe':'#bfdbfe'};border-radius:3px 3px 0 0"></div>
               <span style="font-size:9px;color:#9ca3af">${['M','T','W','T','F','S','T'][i]}</span>
             </div>`).join('')}
         </div>
       </div>
+      ${scope !== 'school' && DISTRICTS ? `
+      <div style="border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin-top:16px">
+        <h4 style="font-size:14px;font-weight:700;margin:0 0 12px">${scope==='state'?'Top Districts':'Schools Snapshot'}</h4>
+        ${(DISTRICTS||[]).slice(0,4).map(d=>`
+          <div style="display:flex;align-items:center;padding:8px 0;border-bottom:1px solid #f9fafb">
+            <span style="flex:1;font-size:13px;font-weight:500">${d.name}</span>
+            ${pill(d.attendance)}
+          </div>`).join('')}
+      </div>` : ''}
     </div>`
-  return { title:'Dashboard', icon:'📊', html }
+  return { title: scope === 'state' ? 'State Dashboard' : scope === 'district' ? 'District Dashboard' : 'School Dashboard', icon:'📊', html }
+}
+
+function buildLearningOutcomesArtifact() {
+  const lo = LEARNING_OUTCOMES || {}
+  const subjects = Object.keys(lo)
+  const html = `
+    <div style="font-family:Inter,sans-serif;padding:0 4px">
+      <h2 style="font-size:22px;font-weight:700;margin:0 0 4px">Learning Outcomes</h2>
+      <p style="color:#666;font-size:13px;margin:0 0 20px">${SCHOOL} · ${TODAY}</p>
+      ${subjects.map(sub => `
+        <div style="margin-bottom:20px">
+          <h4 style="font-size:15px;font-weight:700;margin:0 0 10px;color:#1e3a5f">${sub}</h4>
+          <table style="width:100%;border-collapse:collapse;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">
+            <thead>
+              <tr style="background:#f8fafc">
+                <th style="text-align:left;padding:8px 10px;font-size:11px;color:#9ca3af;font-weight:700">OUTCOME</th>
+                <th style="padding:8px;font-size:11px;color:#9ca3af;font-weight:700;text-align:center">GR 3</th>
+                <th style="padding:8px;font-size:11px;color:#9ca3af;font-weight:700;text-align:center">GR 5</th>
+                <th style="padding:8px;font-size:11px;color:#9ca3af;font-weight:700;text-align:center">GR 8</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${(lo[sub]||[]).map(item=>`
+                <tr style="border-top:1px solid #f3f4f6">
+                  <td style="padding:9px 10px;font-size:12px;color:#374151">${item.outcome}</td>
+                  <td style="padding:9px;text-align:center">${pill(item.grade3||0)}</td>
+                  <td style="padding:9px;text-align:center">${pill(item.grade5||0)}</td>
+                  <td style="padding:9px;text-align:center">${pill(item.grade8||0)}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>`).join('')}
+    </div>`
+  return { title:'Learning Outcomes', icon:'🎯', html }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -320,11 +429,11 @@ const QUICK_ACTIONS = {
     { icon: CalendarCheck, label: 'Mark\nAttendance',  bg: '#FFF8E1', fg: '#D97706', trigger: 'Task: attendance'        },
     { icon: BarChart3,     label: 'Class\nDashboard',  bg: '#EEF2FF', fg: '#4F46E5', trigger: 'Task: dashboard'          },
     { icon: ScanLine,      label: 'XAMTA\nScan',       bg: '#E8F5E9', fg: '#16A34A', trigger: 'XAMTA scan'               },
-    { icon: Award,         label: 'Namo\nLaxmi',       bg: '#F3E5F5', fg: '#9333EA', trigger: 'Task: scholarship'        },
-    { icon: AlertTriangle, label: 'At-Risk\nStudents', bg: '#FEF2F2', fg: '#DC2626', trigger: 'at-risk students'         },
+    { icon: Award,         label: 'Namo\nLaxmi',       bg: '#F3E5F5', fg: '#9333EA', trigger: 'Task: namo_laxmi'        },
+    { icon: AlertTriangle, label: 'At-Risk\nStudents', bg: '#FEF2F2', fg: '#DC2626', trigger: 'Task: at_risk'           },
     { icon: MessageSquare, label: 'Parent\nAlert',     bg: '#E3F2FD', fg: '#1D4ED8', trigger: 'parent alert'             },
     { icon: FileText,      label: 'Generate\nReport',  bg: '#F0F4FF', fg: '#3730A3', trigger: 'Task: report_card'        },
-    { icon: UserRound,     label: 'Student\nData',     bg: '#E8F5E9', fg: '#059669', trigger: 'student data'             },
+    { icon: BookOpen,      label: 'Lesson\nPlan',      bg: '#E8F5E9', fg: '#059669', trigger: 'Task: lesson_plan'        },
   ],
   principal: [
     { icon: BarChart3,     label: 'School\nDashboard', bg: '#EEF2FF', fg: '#4F46E5', trigger: 'Task: dashboard'          },
@@ -334,17 +443,27 @@ const QUICK_ACTIONS = {
     { icon: TrendingUp,    label: 'Class\nPerf.',      bg: '#E8F5E9', fg: '#16A34A', trigger: 'Task: class_performance'  },
     { icon: Award,         label: 'DBT\nStatus',       bg: '#FFF8E1', fg: '#D97706', trigger: 'Task: scholarship'        },
     { icon: FileText,      label: 'Generate\nPDF',     bg: '#E3F2FD', fg: '#1D4ED8', trigger: 'Task: report_card'        },
-    { icon: BookOpen,      label: 'Lesson\nPlan',      bg: '#F0F4FF', fg: '#3730A3', trigger: 'Task: lesson_plan'        },
+    { icon: AlertTriangle, label: 'At-Risk\nStudents', bg: '#FEF2F2', fg: '#DC2626', trigger: 'Task: at_risk'           },
   ],
   deo: [
-    { icon: Building2,     label: 'District\nDash.',   bg: '#EEF2FF', fg: '#4F46E5', trigger: 'Task: dashboard'          },
+    { icon: Building2,     label: 'District\nDash.',   bg: '#EEF2FF', fg: '#4F46E5', trigger: 'Task: district_dashboard' },
     { icon: Award,         label: 'DBT\nReport',       bg: '#FFF8E1', fg: '#D97706', trigger: 'Task: scholarship'        },
     { icon: AlertTriangle, label: 'War Room',          bg: '#FEF2F2', fg: '#DC2626', trigger: 'anomaly alerts'           },
     { icon: BarChart3,     label: 'Block\nAnalysis',   bg: '#E8F5E9', fg: '#16A34A', trigger: 'Task: class_performance'  },
     { icon: CalendarCheck, label: 'Att.\nSummary',     bg: '#F3E5F5', fg: '#9333EA', trigger: 'Task: attendance'         },
-    { icon: FileText,      label: 'District\nReport',  bg: '#F0F4FF', fg: '#3730A3', trigger: 'Task: report_card'        },
+    { icon: GraduationCap, label: 'Learning\nOutcomes',bg: '#E3F2FD', fg: '#1D4ED8', trigger: 'Task: learning_outcomes'  },
     { icon: TrendingUp,    label: 'Critical\nAlerts',  bg: '#FEF2F2', fg: '#DC2626', trigger: 'anomaly alerts'           },
-    { icon: GraduationCap, label: 'VSK\nIntelligence', bg: '#E3F2FD', fg: '#1D4ED8', trigger: 'Task: dashboard'          },
+    { icon: FileText,      label: 'District\nReport',  bg: '#F0F4FF', fg: '#3730A3', trigger: 'Task: report_card'        },
+  ],
+  state_secretary: [
+    { icon: Map,           label: 'State\nDashboard',  bg: '#EEF2FF', fg: '#4F46E5', trigger: 'Task: state_dashboard'    },
+    { icon: Building2,     label: 'District\nDrilldown',bg: '#E8F5E9',fg: '#16A34A', trigger: 'Task: district_dashboard' },
+    { icon: Award,         label: 'Scheme\nAnalytics', bg: '#F3E5F5', fg: '#9333EA', trigger: 'Task: namo_laxmi'        },
+    { icon: AlertTriangle, label: 'War Room',          bg: '#FEF2F2', fg: '#DC2626', trigger: 'anomaly alerts'           },
+    { icon: Brain,         label: 'Learning\nOutcomes',bg: '#E3F2FD', fg: '#1D4ED8', trigger: 'Task: learning_outcomes'  },
+    { icon: TrendingUp,    label: 'Dropout\nRisk',     bg: '#FFF8E1', fg: '#D97706', trigger: 'Task: at_risk'           },
+    { icon: BarChart3,     label: 'DBT\nDisbursal',    bg: '#E8F5E9', fg: '#059669', trigger: 'Task: scholarship'        },
+    { icon: FileText,      label: 'Policy\nAdvisor',   bg: '#F0F4FF', fg: '#3730A3', trigger: 'policy advisor'           },
   ],
   parent: [
     { icon: CalendarCheck, label: "Ravi's\nAtt.",      bg: '#FFF8E1', fg: '#D97706', trigger: 'Task: attendance'         },
@@ -362,7 +481,13 @@ const TASK_FLOWS = {
     triggers: ['attendance','mark attendance','mark','present','absent','task: attendance','task:attendance'],
     steps: [{ key:'grade', prompt:'Which grade?', opts:['3','5','6','8'] }],
     done: 'Attendance marked! You can share or download the register from the panel.',
-    build: buildAttendanceArtifact,
+    build: (ctx) => buildAttendanceArtifact(ctx),
+  },
+  at_risk: {
+    triggers: ['at-risk','at risk','risk','task: at_risk','task:at_risk','dropout','struggling'],
+    steps: [],
+    done: 'At-risk student list loaded. Consider sending parent alerts for high-risk students.',
+    build: () => buildAtRiskArtifact(),
   },
   lesson_plan: {
     triggers: ['lesson','lesson plan','lesson_plan','task: lesson_plan','task:lesson_plan','create lesson','make lesson'],
@@ -371,14 +496,14 @@ const TASK_FLOWS = {
       { key:'grade',   prompt:'Which grade?',   opts:['3','5','6','8'] },
       { key:'topic',   prompt:'What topic?' },
     ],
-    done: 'Your lesson plan is ready. You can share or download it from the panel. What would you like to do next?',
-    build: buildLessonPlanArtifact,
+    done: 'Your lesson plan is ready. You can share or download it from the panel.',
+    build: (ctx) => buildLessonPlanArtifact(ctx),
   },
   class_performance: {
-    triggers: ['performance','class performance','class_performance','task: class_performance','task:class_performance','scores','grades'],
+    triggers: ['performance','class performance','class_performance','task: class_performance','task:class_performance','scores','grades','block analysis'],
     steps: [{ key:'grade', prompt:'Which grade?', opts:['All','3','5','6'] }],
-    done: 'Your dashboard is ready. What would you like to do next?',
-    build: buildPerformanceArtifact,
+    done: 'Performance dashboard ready. What would you like to do next?',
+    build: (ctx) => buildPerformanceArtifact(ctx),
   },
   report_card: {
     triggers: ['report card','report_card','task: report_card','task:report_card','generate report'],
@@ -387,19 +512,43 @@ const TASK_FLOWS = {
       { key:'student', prompt:'Which student?', opts:['All Students','Ravi Parmar','Komal Patel','Ananya Pandya'] },
     ],
     done: 'Report card generated! You can share or download from the panel.',
-    build: buildReportCardArtifact,
+    build: (ctx) => buildReportCardArtifact(ctx),
   },
   scholarship: {
-    triggers: ['scholarship','namo laxmi','dbt','ews','task: scholarship','task:scholarship'],
+    triggers: ['scholarship','dbt','ews','task: scholarship','task:scholarship','dbt status','dbt report','dbt disbursal'],
     steps: [],
     done: 'Scholarship status loaded. View the panel for details.',
-    build: buildScholarshipArtifact,
+    build: () => buildScholarshipArtifact(),
+  },
+  namo_laxmi: {
+    triggers: ['namo laxmi','namo_laxmi','task: namo_laxmi','task:namo_laxmi','scheme analytics'],
+    steps: [],
+    done: 'Namo Laxmi application status loaded.',
+    build: () => buildNamoLaxmiArtifact(),
   },
   dashboard: {
-    triggers: ['dashboard','school dashboard','district dashboard','kpi','task: dashboard','task:dashboard'],
+    triggers: ['dashboard','school dashboard','task: dashboard','task:dashboard','kpi'],
     steps: [],
-    done: 'Dashboard ready. View the panel for full details.',
-    build: buildDashboardArtifact,
+    done: 'School dashboard ready.',
+    build: () => buildDashboardArtifact({ scope:'school' }),
+  },
+  district_dashboard: {
+    triggers: ['district dashboard','district_dashboard','task: district_dashboard','task:district_dashboard','district drilldown'],
+    steps: [],
+    done: 'District dashboard ready.',
+    build: () => buildDashboardArtifact({ scope:'district' }),
+  },
+  state_dashboard: {
+    triggers: ['state dashboard','state_dashboard','task: state_dashboard','task:state_dashboard','state kpi','state intelligence'],
+    steps: [],
+    done: 'State dashboard ready.',
+    build: () => buildDashboardArtifact({ scope:'state' }),
+  },
+  learning_outcomes: {
+    triggers: ['learning outcomes','learning_outcomes','task: learning_outcomes','task:learning_outcomes','lo','outcomes'],
+    steps: [],
+    done: 'Learning outcomes report loaded.',
+    build: () => buildLearningOutcomesArtifact(),
   },
 }
 
@@ -423,10 +572,10 @@ function greetingReply(text, botName) {
 // UI COMPONENTS
 // ─────────────────────────────────────────────────────────────────────────────
 
-function VSKSidebar({ onNew, activeSession, onSelect, role, onClose }) {
-  const meta = ROLE_META[role] || ROLE_META.teacher
-  const bots  = BOTS[role] || BOTS.teacher
-  const initial = meta.name[0].toUpperCase()
+function VSKSidebar({ onNew, activeSession, onSelect, role, userProfile, onClose }) {
+  const meta = userProfile || ROLE_META[role] || ROLE_META.teacher
+  const bots = ROLE_BOTS[role] || ROLE_BOTS.teacher || []
+  const initial = (meta.name || 'U')[0].toUpperCase()
   return (
     <div className="flex flex-col h-full bg-white border-r border-bdr" style={{ width: 260 }}>
       {/* Logo + new */}
@@ -457,8 +606,23 @@ function VSKSidebar({ onNew, activeSession, onSelect, role, onClose }) {
         </div>
       </div>
 
+      {/* Bot list */}
+      <div className="px-3 pb-2">
+        <div className="text-[10px] font-bold text-txt-tertiary tracking-[0.8px] px-1 py-1">BOTS</div>
+        <div className="flex flex-col gap-0.5">
+          {bots.slice(0,4).map(b => (
+            <div key={b} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-surface-secondary cursor-pointer">
+              <div className="w-5 h-5 rounded-md bg-primary flex items-center justify-center flex-shrink-0">
+                <span className="text-white font-bold text-[9px]">V</span>
+              </div>
+              <span className="text-[12px] text-txt-secondary truncate">{b}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* History */}
-      <div className="flex-1 overflow-y-auto px-2 pb-2">
+      <div className="flex-1 overflow-y-auto px-2 pb-2 border-t border-bdr-light pt-2">
         {Object.entries(CHAT_HISTORY).map(([section, items]) => (
           <div key={section} className="mb-2">
             <div className="px-2 py-1.5 text-[10px] font-bold text-txt-tertiary tracking-[0.8px]">{section}</div>
@@ -481,11 +645,15 @@ function VSKSidebar({ onNew, activeSession, onSelect, role, onClose }) {
 
       {/* User footer */}
       <div className="border-t border-bdr-light px-3 py-3 flex items-center gap-2.5">
-        <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-bold text-[14px] flex-shrink-0">
+        <div
+          className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-[14px] flex-shrink-0"
+          style={{ background: userProfile?.color || '#386AF6' }}
+        >
           {initial}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-[13px] font-medium text-txt-primary truncate">{meta.org}</div>
+          <div className="text-[12px] font-semibold text-txt-primary truncate">{meta.name || meta.org}</div>
+          <div className="text-[10px] text-txt-tertiary truncate">{meta.badge || meta.org}</div>
         </div>
         <span className="text-[10px] font-bold bg-primary text-white px-2 py-0.5 rounded-full">PRO</span>
       </div>
@@ -514,7 +682,7 @@ function MessageBubble({ msg, onChipClick }) {
         <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-white font-bold text-[12px] flex-shrink-0 self-end">V</div>
       )}
       <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} max-w-[75%]`}>
-        <div className={`px-4 py-2.5 rounded-2xl text-[14px] leading-relaxed ${
+        <div className={`px-4 py-2.5 rounded-2xl text-[14px] leading-relaxed whitespace-pre-line ${
           isUser
             ? 'bg-primary text-white rounded-br-sm'
             : 'bg-surface-secondary text-txt-primary rounded-bl-sm'
@@ -540,8 +708,9 @@ function MessageBubble({ msg, onChipClick }) {
 }
 
 function WelcomeScreen({ botName, onChip, role }) {
-  const starters = ['Start Demo', 'नमस्ते', 'नम्स्ते']
+  const suggestions = ROLE_SUGGESTIONS[role] || ROLE_SUGGESTIONS.teacher || []
   const actions = QUICK_ACTIONS[role] || QUICK_ACTIONS.teacher
+  const starters = ['Start Demo', 'नमस्ते']
 
   return (
     <div className="flex-1 flex flex-col items-center px-4 md:px-8 py-8 overflow-y-auto">
@@ -555,7 +724,6 @@ function WelcomeScreen({ botName, onChip, role }) {
         <p className="text-[13px] text-txt-secondary max-w-[320px]">
           Gujarat's AI-Powered Education Governance Platform
         </p>
-        {/* Greeting chips */}
         <div className="flex flex-wrap gap-2 justify-center mt-4">
           {starters.map(s => (
             <button
@@ -576,10 +744,9 @@ function WelcomeScreen({ botName, onChip, role }) {
             <Sparkles size={14} className="text-primary" />
             <span className="text-[13px] font-bold text-txt-primary">Quick Actions</span>
           </div>
-          <button className="text-[12px] text-primary font-semibold">See all</button>
         </div>
 
-        <div className="grid grid-cols-4 gap-2.5">
+        <div className="grid grid-cols-4 gap-2.5 mb-6">
           {actions.map((item, i) => {
             const Icon = item.icon
             return (
@@ -589,10 +756,7 @@ function WelcomeScreen({ botName, onChip, role }) {
                 className="flex flex-col items-center justify-center gap-2 py-4 px-2 rounded-2xl border border-bdr-light active:scale-95 transition-all duration-150 hover:shadow-card"
                 style={{ background: item.bg }}
               >
-                <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ background: item.fg + '22' }}
-                >
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: item.fg + '22' }}>
                   <Icon size={20} color={item.fg} strokeWidth={1.8} />
                 </div>
                 <span className="text-[11px] font-semibold text-txt-primary text-center leading-tight whitespace-pre-line">
@@ -602,12 +766,33 @@ function WelcomeScreen({ botName, onChip, role }) {
             )
           })}
         </div>
+
+        {/* Suggested prompts */}
+        {suggestions.length > 0 && (
+          <div>
+            <div className="flex items-center gap-1.5 mb-3">
+              <MessageSquare size={13} className="text-txt-tertiary" />
+              <span className="text-[12px] font-bold text-txt-secondary">Try asking...</span>
+            </div>
+            <div className="flex flex-col gap-2">
+              {suggestions.slice(0, 4).map((s, i) => (
+                <button
+                  key={i}
+                  onClick={() => onChip(s)}
+                  className="text-left px-4 py-2.5 rounded-xl border border-bdr-light text-[13px] text-txt-secondary bg-white hover:bg-surface-secondary hover:text-txt-primary transition-colors"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
 }
 
-function InputBar({ onSend, disabled }) {
+function InputBar({ onSend, disabled, activeBot }) {
   const [text, setText] = useState('')
   const taRef = useRef(null)
   const [focused, setFocused] = useState(false)
@@ -645,7 +830,7 @@ function InputBar({ onSend, disabled }) {
           onKeyDown={handleKey}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
-          placeholder="Message VSK Gujarat..."
+          placeholder={`Message ${activeBot || 'VSK Gujarat'}...`}
           className="w-full px-4 pt-3 pb-2 text-[14px] text-txt-primary bg-transparent outline-none resize-none placeholder-txt-tertiary leading-relaxed"
           style={{ minHeight: 44, maxHeight: 150 }}
         />
@@ -655,9 +840,6 @@ function InputBar({ onSend, disabled }) {
           </button>
           <button className="flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-txt-tertiary hover:bg-surface-secondary transition-colors text-[13px]">
             <Search size={14} /> Search
-          </button>
-          <button className="flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-txt-tertiary hover:bg-surface-secondary transition-colors text-[13px]">
-            <Monitor size={14} /> Bot <ChevronDown size={11} />
           </button>
           <div className="flex-1" />
           <button
@@ -679,9 +861,8 @@ function ArtifactPanel({ artifact, onClose }) {
   if (!artifact) return null
   return (
     <div className="flex flex-col h-full border-l border-bdr bg-white" style={{ minWidth: 0 }}>
-      {/* Header */}
       <div className="flex items-center gap-2.5 px-4 py-3 border-b border-bdr flex-shrink-0">
-        <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center text-white font-bold text-[12px] flex-shrink-0">V</div>
+        <span className="text-[18px]">{artifact.icon}</span>
         <span className="font-semibold text-[14px] text-txt-primary flex-1 truncate">{artifact.title}</span>
         <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-bdr text-[12px] text-txt-secondary hover:bg-surface-secondary transition-colors">
           <Upload size={13} /> Share
@@ -693,22 +874,17 @@ function ArtifactPanel({ artifact, onClose }) {
           <X size={15} />
         </button>
       </div>
-      {/* Content */}
-      <div
-        className="flex-1 overflow-y-auto px-5 py-4"
-        dangerouslySetInnerHTML={{ __html: artifact.html }}
-      />
+      <div className="flex-1 overflow-y-auto px-5 py-4" dangerouslySetInnerHTML={{ __html: artifact.html }} />
     </div>
   )
 }
 
-// Full-screen artifact modal (for mobile)
 function ArtifactModal({ artifact, onClose }) {
   if (!artifact) return null
   return (
     <div className="absolute inset-0 z-50 bg-white flex flex-col animate-slide-in">
       <div className="flex items-center gap-2.5 px-4 py-3 border-b border-bdr flex-shrink-0">
-        <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center text-white font-bold text-[12px] flex-shrink-0">V</div>
+        <span className="text-[18px]">{artifact.icon}</span>
         <span className="font-semibold text-[14px] text-txt-primary flex-1 truncate">{artifact.title}</span>
         <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-bdr text-[12px] text-txt-secondary">
           <Upload size={13} /> Share
@@ -729,23 +905,28 @@ function ArtifactModal({ artifact, onClose }) {
 // MAIN COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
 export default function SuperHomePage() {
-  const { role } = useApp()
-  const bots = BOTS[role] || BOTS.teacher
+  const { role, userProfile } = useApp()
+  const bots = ROLE_BOTS[role] || ROLE_BOTS.teacher || ['VSK 3.0']
   const [activeBot, setActiveBot]   = useState(bots[0])
   const [messages, setMessages]     = useState([])
   const [typing, setTyping]         = useState(false)
-  const [collectState, setCollect]  = useState(null) // { taskId, stepIdx, ctx }
-  const [artifact, setArtifact]     = useState(null) // { title, html }
+  const [collectState, setCollect]  = useState(null)
+  const [artifact, setArtifact]     = useState(null)
   const [activeSession, setSession] = useState('VSK 3.0 Demo Session')
   const [sidebarOpen, setSidebar]   = useState(false)
   const [darkMode, setDark]         = useState(false)
   const [showBotDrop, setBotDrop]   = useState(false)
   const bottomRef = useRef(null)
 
-  // Scroll to bottom on new message
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, typing])
+
+  // Reset active bot when role changes
+  useEffect(() => {
+    const newBots = ROLE_BOTS[role] || ['VSK 3.0']
+    setActiveBot(newBots[0])
+  }, [role])
 
   const addBot = useCallback((text, opts = []) => {
     setTyping(true)
@@ -755,16 +936,12 @@ export default function SuperHomePage() {
     }, 600 + Math.random() * 400)
   }, [])
 
-  const openArtifact = useCallback((af) => {
-    setArtifact(af)
-  }, [])
+  const openArtifact = useCallback((af) => setArtifact(af), [])
 
-  // ── Conversation handler ────────────────────────────────────────────────
   const handleSend = useCallback((text) => {
-    // Add user message
     setMessages(prev => [...prev, { id: Date.now(), role:'user', text, opts:[] }])
 
-    // ── If we're mid-collection ──────────────────────────────────────────
+    // ── Mid-collection flow ──────────────────────────────────────────────
     if (collectState) {
       const flow  = TASK_FLOWS[collectState.taskId]
       const step  = flow.steps[collectState.stepIdx]
@@ -776,7 +953,6 @@ export default function SuperHomePage() {
         setCollect({ taskId: collectState.taskId, stepIdx: nextStep, ctx: newCtx })
         addBot(next.prompt, next.opts || [])
       } else {
-        // All steps done — build artifact
         setCollect(null)
         const af = flow.build(newCtx)
         openArtifact(af)
@@ -785,19 +961,19 @@ export default function SuperHomePage() {
       return
     }
 
-    // ── Greeting ────────────────────────────────────────────────────────
+    // ── Greeting ─────────────────────────────────────────────────────────
     const gr = greetingReply(text, activeBot)
     if (gr) { addBot(gr); return }
 
-    // ── Bot switch ──────────────────────────────────────────────────────
-    const botMatch = bots.find(b => text.toLowerCase().includes(b.toLowerCase()) && b !== 'VSK 3.0 Main')
+    // ── Bot switch ────────────────────────────────────────────────────────
+    const botMatch = bots.find(b => text.toLowerCase().includes(b.toLowerCase()) && b !== bots[0])
     if (botMatch) {
       setActiveBot(botMatch)
-      addBot(`${botMatch} activated.`)
+      addBot(`${botMatch} activated. How can I help you?`)
       return
     }
 
-    // ── Task detection ──────────────────────────────────────────────────
+    // ── Task detection ────────────────────────────────────────────────────
     const taskId = detectTask(text)
     if (taskId) {
       const flow = TASK_FLOWS[taskId]
@@ -813,39 +989,66 @@ export default function SuperHomePage() {
       return
     }
 
-    // ── Contextual shortcuts ─────────────────────────────────────────────
+    // ── Contextual shortcuts ──────────────────────────────────────────────
     const q = text.toLowerCase()
+
     if (q.includes('xamta') || q.includes('scan')) {
-      addBot('📷 XAMTA Scan ready. Point your camera at the answer sheet and tap capture. (Camera feature opens on device.)', [])
+      addBot('📷 XAMTA Scan ready. Point your camera at the answer sheet and tap capture. (Camera feature opens on device.)')
       return
     }
-    if (q.includes('at-risk') || q.includes('risk')) {
-      addBot('⚠️ 3 students are at risk for Namo Laxmi eligibility:\n• Ravi Parmar — 74% attendance\n• Komal Patel — 71% attendance\n• Isha Jadeja — 79% attendance\nWould you like to send parent alerts?',
-        ['Send alerts','View details','Mark attendance'])
-      return
-    }
-    if (q.includes('parent alert') || q.includes('parent')) {
+    if (q.includes('parent alert') || q.includes('parent connect') || q.includes('notify parent')) {
       addBot('📨 Parent alert system ready. Which class should receive the alert?',
         ['Class 6-A','Class 6-B','All classes'])
       return
     }
     if (q.includes('anomaly') || q.includes('war room')) {
       addBot('🔴 3 anomalies detected:\n• Daskroi: 72.1% attendance (below 75% threshold)\n• 142 schools flagged for follow-up\n• 2 data submission gaps\nWould you like the full dashboard?',
-        ['Task: dashboard','View schools','Export report'])
+        ['Task: district_dashboard','Task: state_dashboard','Export report'])
       return
     }
-    if (q.includes('student data')) {
+    if (q.includes('student data') || q.includes('new enrollment') || q.includes('update records')) {
       addBot('📋 Student data entry ready. What would you like to update?',
         ['New enrollment','Update records','Scheme eligibility'])
       return
     }
+    if (q.includes('remediation') || q.includes('remedial')) {
+      addBot('🔧 Remediation plan generator ready. Which subject needs intervention?',
+        ['Mathematics','Science','Gujarati'])
+      return
+    }
+    if (q.includes('quiz') || q.includes('assessment')) {
+      addBot('📝 Quiz builder ready. Which subject and grade?',
+        ['Math - Grade 5','Science - Grade 6','Gujarati - Grade 8'])
+      return
+    }
+    if (q.includes('brc') || q.includes('inspection') || q.includes('visit')) {
+      addBot('📋 BRC/CRC visit checklist ready. Would you like to generate an inspection report?',
+        ['Generate checklist','Log visit notes','View previous visits'])
+      return
+    }
+    if (q.includes('policy') || q.includes('policy advisor')) {
+      addBot('📜 Policy Advisor ready. I can help analyze education schemes, compliance requirements, or draft policy briefs. What do you need?',
+        ['Scheme compliance','Draft policy brief','Regulatory update'])
+      return
+    }
+    if (q.includes('message teacher') || q.includes('contact teacher')) {
+      addBot(`📩 Message sent to ${SCHOOL_INFO?.name || 'the school'} teacher. You'll receive a reply within 24 hours.`)
+      return
+    }
 
-    // ── Fallback ─────────────────────────────────────────────────────────
+    // ── Fallback ──────────────────────────────────────────────────────────
+    const fallbackOpts = {
+      teacher:         ['Task: attendance','Task: lesson_plan','Task: at_risk'],
+      principal:       ['Task: dashboard','Task: at_risk','anomaly alerts'],
+      deo:             ['Task: district_dashboard','Task: learning_outcomes','anomaly alerts'],
+      state_secretary: ['Task: state_dashboard','Task: namo_laxmi','Task: learning_outcomes'],
+      parent:          ['Task: attendance','Task: scholarship','Task: report_card'],
+    }
     addBot(
-      "I can help you with attendance, lesson plans, class performance, report cards, and scholarships. Try typing one of those, or tap a Quick Action below.",
-      ['Task: attendance','Task: lesson_plan','Task: class_performance']
+      "I can help with attendance, lesson plans, performance analysis, scholarships, and dashboards. Try typing one of those, or tap a Quick Action.",
+      fallbackOpts[role] || fallbackOpts.teacher
     )
-  }, [collectState, activeBot, bots, addBot, openArtifact])
+  }, [collectState, activeBot, bots, addBot, openArtifact, role])
 
   const handleNew = () => {
     setMessages([])
@@ -860,8 +1063,7 @@ export default function SuperHomePage() {
   return (
     <div className={`flex h-full overflow-hidden ${darkMode ? 'bg-[#121212]' : 'bg-white'}`}>
 
-      {/* ── Sidebar — desktop always visible, mobile as drawer ── */}
-      {/* Mobile overlay */}
+      {/* Sidebar */}
       {sidebarOpen && (
         <div className="md:hidden absolute inset-0 z-30 bg-black/40" onClick={() => setSidebar(false)} />
       )}
@@ -876,16 +1078,16 @@ export default function SuperHomePage() {
           activeSession={activeSession}
           onSelect={s => { setSession(s); setSidebar(false) }}
           role={role}
+          userProfile={userProfile}
           onClose={() => setSidebar(false)}
         />
       </div>
 
-      {/* ── Main chat area ── */}
+      {/* Main chat area */}
       <div className="flex-1 flex flex-col min-w-0 h-full">
 
         {/* Top bar */}
         <div className="flex items-center gap-3 px-4 py-2.5 border-b border-bdr flex-shrink-0">
-          {/* Mobile hamburger */}
           <button
             className="md:hidden w-8 h-8 flex items-center justify-center rounded-lg text-txt-secondary hover:bg-surface-secondary"
             onClick={() => setSidebar(true)}
@@ -893,7 +1095,6 @@ export default function SuperHomePage() {
             <Menu size={18} />
           </button>
 
-          {/* Model selector */}
           <div className="relative">
             <button
               onClick={() => setBotDrop(v => !v)}
@@ -918,7 +1119,6 @@ export default function SuperHomePage() {
 
           <div className="flex-1" />
 
-          {/* Theme toggle */}
           <button
             onClick={() => setDark(v => !v)}
             className="w-9 h-9 flex items-center justify-center rounded-lg text-txt-secondary hover:bg-surface-secondary transition-colors"
@@ -948,7 +1148,7 @@ export default function SuperHomePage() {
                 </>
               )}
             </div>
-            <InputBar onSend={handleSend} disabled={typing} />
+            <InputBar onSend={handleSend} disabled={typing} activeBot={activeBot} />
           </div>
 
           {/* Artifact panel — desktop inline */}
@@ -960,7 +1160,7 @@ export default function SuperHomePage() {
         </div>
       </div>
 
-      {/* Artifact modal — mobile full screen */}
+      {/* Artifact modal — mobile */}
       {artifact && <ArtifactModal artifact={artifact} onClose={() => setArtifact(null)} />}
     </div>
   )

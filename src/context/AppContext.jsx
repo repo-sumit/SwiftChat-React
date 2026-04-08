@@ -1,18 +1,26 @@
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react'
+import { USER_PROFILES } from '../data/mockData'
 
 const AppContext = createContext(null)
 
 export function AppProvider({ children }) {
-  const [screen, setScreen] = useState('splash')
-  const [stack, setStack] = useState(['splash'])
-  const [role, setRole] = useState(null) // 'teacher' | 'principal' | 'deo' | 'parent'
-  const [lang, setLang] = useState('en')
-  const [toast, setToast] = useState({ message: '', type: '', visible: false })
-  const [call, setCall] = useState(null)
-  const [canvasOpen, setCanvasOpen] = useState(false)
+  const [screen, setScreen]               = useState('splash')
+  const [stack, setStack]                 = useState(['splash'])
+  const [role, setRoleRaw]                = useState(null)
+  const [userProfile, setUserProfile]     = useState(null)
+  const [lang, setLang]                   = useState('en')
+  const [toast, setToast]                 = useState({ message: '', type: '', visible: false })
+  const [call, setCall]                   = useState(null)
+  const [canvasOpen, setCanvasOpen]       = useState(false)
   const [canvasContext, setCanvasContext] = useState(null)
-  const [ssoState, setSsoState] = useState('Gujarat')
+  const [ssoState, setSsoState]           = useState('Gujarat')
   const toastTimer = useRef(null)
+
+  // Unified role setter — also loads matching profile from mock data
+  const setRole = useCallback((r) => {
+    setRoleRaw(r)
+    setUserProfile(r ? (USER_PROFILES[r] ?? null) : null)
+  }, [])
 
   const navigate = useCallback((id, replace = false) => {
     setStack(s => replace ? [...s.slice(0, -1), id] : [...s, id])
@@ -37,30 +45,24 @@ export function AppProvider({ children }) {
   }, [])
 
   const signOut = useCallback(() => {
-    setRole(null)
+    setRoleRaw(null)
+    setUserProfile(null)
     setStack(['splash'])
     setScreen('splash')
     setCanvasOpen(false)
     setCall(null)
   }, [])
 
-  const openCall = useCallback((chatId, botName) => {
-    setCall({ chatId, botName, active: true })
-  }, [])
-
-  const endCall = useCallback(() => setCall(null), [])
-
-  const openCanvas = useCallback((ctx = null) => {
-    setCanvasContext(ctx)
-    setCanvasOpen(true)
-  }, [])
-
+  const openCall    = useCallback((chatId, botName) => setCall({ chatId, botName, active: true }), [])
+  const endCall     = useCallback(() => setCall(null), [])
+  const openCanvas  = useCallback((ctx = null) => { setCanvasContext(ctx); setCanvasOpen(true) }, [])
   const closeCanvas = useCallback(() => setCanvasOpen(false), [])
 
   return (
     <AppContext.Provider value={{
       screen, navigate, goBack,
       stack, role, setRole,
+      userProfile, setUserProfile,
       lang, setLang,
       toast, showToast,
       call, openCall, endCall,

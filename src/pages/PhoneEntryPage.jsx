@@ -2,15 +2,14 @@ import React, { useState } from 'react'
 import { useApp } from '../context/AppContext'
 import Logo from '../components/Logo'
 import PeopleIllustration from '../assets/icons/PeopleIllustration'
+import { DEMO_PHONE_USER } from '../data/mockData'
 
 export default function PhoneEntryPage() {
   const { navigate, goBack } = useApp()
   const [phone, setPhone] = useState('')
 
-  const handleChange = (e) => {
-    setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))
-  }
-
+  const handleChange = (e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))
+  const handleDemoFill = () => setPhone(DEMO_PHONE_USER.phone)
   const canProceed = phone.length === 10
 
   return (
@@ -64,7 +63,7 @@ export default function PhoneEntryPage() {
           <div className="px-6 pt-6 pb-2">
             <Logo size={30} showText textColor="#1A1F36" />
           </div>
-          <FormContent phone={phone} onPhoneChange={handleChange} canProceed={canProceed} navigate={navigate} goBack={goBack} />
+          <FormContent phone={phone} onPhoneChange={handleChange} canProceed={canProceed} navigate={navigate} goBack={goBack} onDemoFill={handleDemoFill} />
           {/* Mobile illustration */}
           <div className="flex justify-center pb-6 px-6">
             <PeopleIllustration width={220} height={220} />
@@ -79,7 +78,7 @@ export default function PhoneEntryPage() {
           <div className="mb-8">
             <Logo size={30} showText textColor="#1A1F36" />
           </div>
-          <FormContent phone={phone} onPhoneChange={handleChange} canProceed={canProceed} navigate={navigate} goBack={goBack} />
+          <FormContent phone={phone} onPhoneChange={handleChange} canProceed={canProceed} navigate={navigate} goBack={goBack} onDemoFill={handleDemoFill} />
         </div>
       </div>
     </div>
@@ -87,7 +86,7 @@ export default function PhoneEntryPage() {
 }
 
 // ── Shared form content ────────────────────────────────────────────────────
-function FormContent({ phone, onPhoneChange, canProceed, navigate, goBack }) {
+function FormContent({ phone, onPhoneChange, onDemoFill, canProceed, navigate, goBack }) {
   return (
     <div className="px-6 pb-6">
       {/* Heading */}
@@ -165,6 +164,17 @@ function FormContent({ phone, onPhoneChange, canProceed, navigate, goBack }) {
       >
         ← Back to login options
       </button>
+
+      {/* Demo hint */}
+      <div className="mt-4 flex items-center justify-center gap-2">
+        <span className="text-[11px] text-txt-tertiary">Demo parent:</span>
+        <button
+          onClick={onDemoFill}
+          className="text-[11px] font-bold text-primary underline underline-offset-2"
+        >
+          {DEMO_PHONE_USER.phone}
+        </button>
+      </div>
     </div>
   )
 }

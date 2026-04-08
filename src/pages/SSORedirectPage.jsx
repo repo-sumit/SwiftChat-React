@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
-import { ArrowLeft, MoreVertical, Eye, EyeOff, Lock, RefreshCw, X, ChevronRight } from 'lucide-react'
+import { ArrowLeft, MoreVertical, Eye, EyeOff, Lock, RefreshCw, X, ChevronRight, Zap } from 'lucide-react'
 import { useApp } from '../context/AppContext'
+import { DEMO_SSO_USERS } from '../data/mockData'
 
 const STATES = [
   'Gujarat', 'Punjab', 'Delhi', 'Uttar Pradesh', 'Maharashtra',
@@ -43,18 +44,29 @@ function StateSheet({ onSelect, onClose }) {
 }
 
 export default function SSORedirectPage() {
-  const { navigate, goBack, ssoState, setSsoState } = useApp()
+  const { navigate, goBack, ssoState, setSsoState, setRole } = useApp()
   const [stateId, setStateId]     = useState('')
   const [password, setPassword]   = useState('')
   const [captchaIn, setCaptchaIn] = useState('')
   const [showPw, setShowPw]       = useState(false)
   const [selectedState, setSelectedState] = useState(ssoState || 'Gujarat')
   const [showSheet, setShowSheet] = useState(false)
+  const [showDemo, setShowDemo]   = useState(false)
   const [captchaCode]             = useState('3X6E5')
 
   const handleSignIn = () => {
     if (!stateId || !password) return
+    // Match demo credentials → auto-set role
+    const match = DEMO_SSO_USERS.find(u => u.stateId === stateId && u.password === password)
+    if (match) setRole(match.role)
     navigate('sso_verifying', true)
+  }
+
+  const fillDemo = (user) => {
+    setStateId(user.stateId)
+    setPassword(user.password)
+    setCaptchaIn(captchaCode)
+    setShowDemo(false)
   }
 
   return (
@@ -214,8 +226,38 @@ export default function SSORedirectPage() {
               <span className="text-[12px] text-primary cursor-pointer active:underline">Help / Support</span>
             </div>
 
+            {/* Demo credentials */}
+            <div className="mt-4">
+              <button
+                onClick={() => setShowDemo(v => !v)}
+                className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border border-dashed border-primary text-[12px] font-semibold text-primary bg-primary-light"
+              >
+                <Zap size={13} /> Demo Credentials {showDemo ? '▲' : '▼'}
+              </button>
+              {showDemo && (
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {DEMO_SSO_USERS.map(u => (
+                    <button
+                      key={u.stateId}
+                      onClick={() => fillDemo(u)}
+                      className="flex items-center gap-2 px-3 py-2 rounded-xl border border-bdr bg-white hover:bg-primary-light transition-colors text-left"
+                    >
+                      <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0"
+                        style={{ background: u.color }}>
+                        {u.initials}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-bold text-txt-primary truncate">{u.name}</p>
+                        <p className="text-[10px] text-txt-tertiary">{u.badge}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Dev shortcut */}
-            <p className="text-center mt-4">
+            <p className="text-center mt-3">
               <span
                 className="text-[11px] text-danger cursor-pointer font-semibold"
                 onClick={() => navigate('sso_fail', true)}

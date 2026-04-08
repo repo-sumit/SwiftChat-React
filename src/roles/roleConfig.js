@@ -1,0 +1,176 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// VSK 3.0 Role Configuration — RBAC
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const ROLE_LABELS = {
+  teacher:         'Teacher',
+  principal:       'Principal',
+  deo:             'DEO',
+  state_secretary: 'State Secretary',
+  parent:          'Parent',
+}
+
+export const ROLE_SCOPES = {
+  teacher:         'School',
+  principal:       'School',
+  deo:             'District',
+  state_secretary: 'State',
+  parent:          'Student',
+}
+
+// Bot list per role
+export const ROLE_BOTS = {
+  teacher: [
+    'VSK 3.0',
+    'Shikshak Sahayak',
+    'Assessment Bot',
+    'Remediation Bot',
+    'Parent Connect',
+  ],
+  principal: [
+    'VSK 3.0',
+    'School Monitor',
+    'Compliance Bot',
+    'Parent Connect',
+    'Report Generator',
+  ],
+  deo: [
+    'VSK 3.0',
+    'District Analyst',
+    'DBT Monitor',
+    'Intervention Bot',
+    'War Room',
+  ],
+  state_secretary: [
+    'VSK 3.0',
+    'State Intelligence',
+    'Scheme Analytics',
+    'District Drilldown',
+    'Policy Advisor',
+  ],
+  parent: [
+    'VSK 3.0',
+    'Parent Assistant',
+  ],
+}
+
+// Suggested starter prompts per role
+export const ROLE_SUGGESTIONS = {
+  teacher: [
+    'Mark attendance for Class 8',
+    'Lesson plan for fractions — Class 6',
+    'Show at-risk students',
+    'Generate report cards',
+    'Namo Laxmi scholarship status',
+    'Create quiz for Science Class 5',
+    'Notify parents of absent students',
+  ],
+  principal: [
+    'School attendance summary',
+    'Show at-risk students across school',
+    'Teacher activity report',
+    'Parent outreach status',
+    'Scholarship pending approvals',
+    'Generate school performance PDF',
+    'War room — anomaly alerts',
+  ],
+  deo: [
+    'District attendance overview',
+    'Block-wise risk analysis',
+    'DBT scholarship bottlenecks',
+    'War room — district anomalies',
+    'School comparison report',
+    'Escalation queue',
+    'Critical alert schools',
+  ],
+  state_secretary: [
+    'State attendance summary',
+    'District drilldown — Ahmedabad',
+    'Namo Laxmi scheme analytics',
+    'Statewide dropout risk signals',
+    'Top and bottom performing districts',
+    'DBT disbursement status',
+    'Strategic intervention map',
+  ],
+  parent: [
+    "Ravi's attendance this month",
+    'Homework assignments due',
+    'Scholarship status — Namo Laxmi',
+    'Message to class teacher',
+    'Download report card',
+    'Upcoming school events',
+  ],
+}
+
+// Canvas modules accessible per role
+export const ROLE_CANVASES = {
+  teacher: [
+    'attendance', 'lesson_plan', 'quiz', 'homework', 'report_card',
+    'at_risk', 'remediation', 'parent_notify', 'brc_visit', 'peer_buddy',
+    'namo_laxmi', 'scholarship', 'learning_outcomes', 'xamta_scan',
+  ],
+  principal: [
+    'attendance', 'school_dashboard', 'at_risk', 'parent_notify',
+    'teacher_activity', 'report_card', 'scholarship', 'learning_outcomes',
+  ],
+  deo: [
+    'district_dashboard', 'attendance', 'scholarship', 'war_room',
+    'block_analysis', 'report_card', 'at_risk',
+  ],
+  state_secretary: [
+    'state_dashboard', 'district_dashboard', 'scholarship', 'war_room',
+    'intervention_map', 'scheme_analytics', 'report_card',
+  ],
+  parent: [
+    'attendance', 'scholarship', 'report_card', 'homework',
+  ],
+}
+
+// Feature flags per role
+export const ROLE_PERMISSIONS = {
+  teacher: {
+    canMarkAttendance: true,
+    canViewAllStudents: true,     // own class only
+    canCreateContent: true,
+    canViewDistrict: false,
+    canViewState: false,
+    canApproveScholarship: false,
+    canViewTeacherData: false,
+  },
+  principal: {
+    canMarkAttendance: false,
+    canViewAllStudents: true,     // whole school
+    canCreateContent: false,
+    canViewDistrict: false,
+    canViewState: false,
+    canApproveScholarship: true,
+    canViewTeacherData: true,
+  },
+  deo: {
+    canMarkAttendance: false,
+    canViewAllStudents: true,     // district
+    canCreateContent: false,
+    canViewDistrict: true,
+    canViewState: false,
+    canApproveScholarship: true,
+    canViewTeacherData: true,
+  },
+  state_secretary: {
+    canMarkAttendance: false,
+    canViewAllStudents: true,     // state
+    canCreateContent: false,
+    canViewDistrict: true,
+    canViewState: true,
+    canApproveScholarship: true,
+    canViewTeacherData: true,
+  },
+  parent: {
+    canMarkAttendance: false,
+    canViewAllStudents: false,    // own child only
+    canCreateContent: false,
+    canViewDistrict: false,
+    canViewState: false,
+    canApproveScholarship: false,
+    canViewTeacherData: false,
+  },
+}

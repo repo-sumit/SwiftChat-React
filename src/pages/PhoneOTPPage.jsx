@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import { useApp } from '../context/AppContext'
 import Logo from '../components/Logo'
 import PeopleIllustration from '../assets/icons/PeopleIllustration'
+import { DEMO_PHONE_USER } from '../data/mockData'
 
 const OTP_LEN = 4
 const OTP_TIMER = 40
@@ -52,7 +53,10 @@ export default function PhoneOTPPage() {
   const filled = otp.every(d => d !== '')
 
   const handleConfirm = () => {
-    if (otp.join('') === '0000') { setStatus('error'); return }
+    const code = otp.join('')
+    // Accept demo OTP or any 4-digit non-0000 code
+    const valid = code === DEMO_PHONE_USER.otp || (code !== '0000' && code.length === 4)
+    if (!valid) { setStatus('error'); return }
     setStatus('success')
     setRole('parent')
     setTimeout(() => navigate('home', true), 1200)
