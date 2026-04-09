@@ -858,13 +858,23 @@ function ProgressText({ steps }) {
 // Full-screen webview modal for expanded cards
 function WebviewModal({ card, onClose }) {
   if (!card) return null
-  const SESSION_TTL = 5 * 60 * 1000 // 5 minutes
+  const SESSION_TTL = 5 * 60 * 1000
   const isExpired = card.timestamp && (Date.now() - card.timestamp > SESSION_TTL)
   return (
-    <div className="absolute inset-0 z-50 bg-white flex flex-col animate-slide-in">
+    <>
+      {/* Backdrop — mobile full, desktop right half */}
+      <div className="absolute inset-0 z-40 bg-black/30 md:hidden" onClick={onClose} />
+      <div
+        data-webview
+        className="absolute z-50 bg-white flex flex-col animate-slide-in shadow-xl
+          inset-0 md:inset-y-0 md:left-auto md:right-0"
+      >
+      {/* On desktop: half width with border */}
+      <style>{`.animate-slide-in { animation: slideIn 0.25s ease }
+        @media(min-width:768px){ [data-webview]{ width:50% !important; min-width:380px; border-left:1px solid #E2E8F0 } }`}</style>
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-bdr flex-shrink-0" style={{ background: '#F8FAFC' }}>
-        <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-surface-secondary">
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-[#E2E8F0] flex-shrink-0" style={{ background: '#F8FAFC' }}>
+        <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-[#F0F2F5]">
           <ArrowLeft size={18} className="text-txt-primary" />
         </button>
         <span className="text-[18px]">{card.icon}</span>
@@ -872,7 +882,13 @@ function WebviewModal({ card, onClose }) {
           <div className="text-[14px] font-bold text-txt-primary truncate" style={{ fontFamily: 'Montserrat, sans-serif' }}>{card.title}</div>
           {card.subtitle && <div className="text-[11px] text-txt-secondary">{card.subtitle}</div>}
         </div>
-        <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-surface-secondary">
+        <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#E2E8F0] text-[11px] text-txt-secondary hover:bg-[#F0F2F5] transition-colors" style={{ fontFamily: 'Montserrat, sans-serif' }}>
+          <Upload size={12} /> Share
+        </button>
+        <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#E2E8F0] text-[11px] text-txt-secondary hover:bg-[#F0F2F5] transition-colors" style={{ fontFamily: 'Montserrat, sans-serif' }}>
+          <Download size={12} /> Download
+        </button>
+        <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-[#F0F2F5]">
           <X size={16} className="text-txt-tertiary" />
         </button>
       </div>
@@ -895,7 +911,8 @@ function WebviewModal({ card, onClose }) {
           dangerouslySetInnerHTML={{ __html: card.fullHtml || card.html || '' }}
         />
       )}
-    </div>
+      </div>
+    </>
   )
 }
 
@@ -1069,15 +1086,22 @@ function WelcomeScreen({ botName, onChip, role }) {
   )
 }
 
-function InputBar({ onSend, disabled, activeBot }) {
+const DESIGN_TOOLS = [
+  { id: 'canva',  label: 'Create with Canva',  icon: '🎨', color: '#7B2FF2' },
+  { id: 'adobe',  label: 'Create with Adobe',  icon: '🅰️', color: '#E8344E' },
+]
+
+function InputBar({ onSend, disabled, activeBot, onAttach, activeTool, onToolSelect }) {
   const [text, setText] = useState('')
   const taRef = useRef(null)
   const [focused, setFocused] = useState(false)
+  const [showTools, setShowTools] = useState(false)
+  const fileRef = useRef(null)
 
   const send = () => {
     const v = text.trim()
     if (!v || disabled) return
-    onSend(v)
+    onSend(v, activeTool)
     setText('')
     if (taRef.current) taRef.current.style.height = 'auto'
   }
@@ -1094,9 +1118,19 @@ function InputBar({ onSend, disabled, activeBot }) {
 
   return (
     <div className="px-4 pb-4 pt-2 flex-shrink-0">
+      {/* Active tool badge */}
+      {activeTool && (
+        <div className="flex items-center gap-2 mb-2 px-1">
+          <span className="text-[11px] font-bold px-2.5 py-1 rounded-full text-white"
+            style={{ background: DESIGN_TOOLS.find(t=>t.id===activeTool)?.color || '#666', fontFamily: 'Montserrat, sans-serif' }}>
+            {DESIGN_TOOLS.find(t=>t.id===activeTool)?.icon} {DESIGN_TOOLS.find(t=>t.id===activeTool)?.label}
+          </span>
+          <button onClick={() => onToolSelect?.(null)} className="text-[11px] text-txt-tertiary hover:text-txt-secondary">✕ Remove</button>
+        </div>
+      )}
       <div
         className={`rounded-2xl border transition-all ${
-          focused ? 'border-primary shadow-[0_0_0_2px_rgba(56,106,246,0.15)]' : 'border-bdr'
+          focused ? 'border-primary shadow-[0_0_0_2px_rgba(56,106,246,0.15)]' : 'border-[#E2E8F0]'
         } bg-white`}
       >
         <textarea
@@ -1107,17 +1141,66 @@ function InputBar({ onSend, disabled, activeBot }) {
           onKeyDown={handleKey}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
-          placeholder={`Message ${activeBot || 'VSK Gujarat'}...`}
+          placeholder={activeTool ? `Describe what to create with ${activeTool === 'canva' ? 'Canva' : 'Adobe'}...` : `Message ${activeBot || 'VSK Gujarat'}...`}
           className="w-full px-4 pt-3 pb-2 text-[14px] text-txt-primary bg-transparent outline-none resize-none placeholder-txt-tertiary leading-relaxed"
-          style={{ minHeight: 44, maxHeight: 150 }}
+          style={{ minHeight: 44, maxHeight: 150, fontFamily: 'Montserrat, sans-serif' }}
         />
-        <div className="flex items-center gap-2 px-3 pb-2.5">
+        <div className="flex items-center gap-1.5 px-3 pb-2.5">
+          {/* Attachment */}
+          <button
+            onClick={() => fileRef.current?.click()}
+            className="flex items-center justify-center w-8 h-8 rounded-lg text-txt-tertiary hover:bg-[#F5F7FA] transition-colors"
+            title="Attach file"
+          >
+            <Plus size={16} />
+          </button>
+          <input ref={fileRef} type="file" accept="image/*,.pdf" className="hidden"
+            onChange={e => { if (e.target.files?.[0]) onAttach?.(e.target.files[0]); e.target.value = '' }} />
+
+          {/* Tools dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setShowTools(v => !v)}
+              className="flex items-center gap-1 h-8 px-2 rounded-lg text-txt-tertiary hover:bg-[#F5F7FA] transition-colors text-[12px]"
+              style={{ fontFamily: 'Montserrat, sans-serif' }}
+            >
+              <span style={{ fontSize: 14 }}>🛠️</span> Tools
+            </button>
+            {showTools && (
+              <div className="absolute bottom-full left-0 mb-1 bg-white border border-[#E2E8F0] rounded-xl shadow-lg z-20 min-w-[200px] py-1 animate-fade-in">
+                <div className="px-3 py-1.5 text-[10px] font-bold text-txt-tertiary tracking-wider">DESIGN TOOLS</div>
+                {DESIGN_TOOLS.map(t => (
+                  <button key={t.id}
+                    onClick={() => { onToolSelect?.(t.id); setShowTools(false) }}
+                    className={`w-full text-left px-3 py-2.5 text-[13px] flex items-center gap-2.5 hover:bg-[#F5F7FA] transition-colors ${activeTool === t.id ? 'bg-[#F0F4FF]' : ''}`}
+                    style={{ fontFamily: 'Montserrat, sans-serif' }}
+                  >
+                    <span className="text-[16px]">{t.icon}</span>
+                    <span className="font-medium">{t.label}</span>
+                    {activeTool === t.id && <span className="ml-auto text-primary text-[12px]">✓</span>}
+                  </button>
+                ))}
+                <div className="border-t border-[#F0F2F5] mt-1 pt-1">
+                  <div className="px-3 py-1.5 text-[10px] font-bold text-txt-tertiary tracking-wider">UPLOAD</div>
+                  <button
+                    onClick={() => { fileRef.current?.click(); setShowTools(false) }}
+                    className="w-full text-left px-3 py-2.5 text-[13px] flex items-center gap-2.5 hover:bg-[#F5F7FA]"
+                    style={{ fontFamily: 'Montserrat, sans-serif' }}
+                  >
+                    <FileUp size={16} className="text-txt-secondary" />
+                    <span className="font-medium">Upload Image / PDF</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="flex-1" />
           <button
             onClick={send}
             disabled={!text.trim() || disabled}
             className="w-8 h-8 rounded-full flex items-center justify-center transition-all disabled:opacity-30"
-            style={{ background: text.trim() ? '#3d5afe' : '#e5e7eb' }}
+            style={{ background: text.trim() ? '#386AF6' : '#e5e7eb' }}
           >
             <Send size={14} color={text.trim() ? '#fff' : '#9ca3af'} />
           </button>
@@ -1187,6 +1270,7 @@ export default function SuperHomePage() {
   const [sidebarOpen, setSidebar]   = useState(false)
   const [progressSteps, setProgress] = useState(null) // streaming progress text
   const [webviewCard, setWebview]    = useState(null)  // opened card for webview
+  const [activeTool, setActiveTool]  = useState(null)  // 'canva' | 'adobe' | null
   const bottomRef = useRef(null)
 
   useEffect(() => {
@@ -1271,6 +1355,40 @@ export default function SuperHomePage() {
         document.body.appendChild(overlay)
       }
     }
+    // ── Design tool globals ──────────────────────────────────────────
+    window._vskEditMode = () => {
+      const btn = document.getElementById('edit-toggle')
+      const editables = document.querySelectorAll('.ce')
+      const isEditing = btn?.dataset.editing === 'true'
+      editables.forEach(el => { el.contentEditable = isEditing ? 'false' : 'true'; el.style.outline = isEditing ? 'none' : '2px dashed #386AF6'; el.style.outlineOffset = '2px'; el.style.borderRadius = '4px' })
+      if (btn) { btn.dataset.editing = isEditing ? 'false' : 'true'; btn.textContent = isEditing ? '✏️ Edit Text' : '✅ Done Editing'; btn.style.background = isEditing ? 'white' : '#EEF3FF'; btn.style.borderColor = isEditing ? '#E2E8F0' : '#386AF6'; btn.style.color = isEditing ? '#374151' : '#386AF6' }
+    }
+    window._vskTheme = (c1, c2) => {
+      const hero = document.getElementById('hero-grad')
+      if (hero) hero.style.background = `linear-gradient(135deg,${c1},${c2})`
+      // Update numbered circles
+      document.querySelectorAll('#design-content [style*="border-radius: 50%"]').forEach(el => {
+        if (el.style.background?.includes('linear-gradient') || el.style.background === c1) el.style.background = `linear-gradient(135deg,${c1},${c2})`
+      })
+    }
+    window._vskDownloadPdf = () => {
+      const content = document.getElementById('design-content')
+      if (!content) return
+      const toolbar = document.getElementById('design-toolbar')
+      if (toolbar) toolbar.style.display = 'none'
+      const printWin = window.open('', '_blank', 'width=800,height=1100')
+      printWin.document.write(`<!DOCTYPE html><html><head><title>VSK 3.0 — Lesson Plan</title>
+        <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+        <style>
+          *{margin:0;padding:0;box-sizing:border-box}
+          body{font-family:Montserrat,sans-serif;padding:20px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+          @media print{body{padding:10px}@page{margin:12mm}}
+        </style>
+      </head><body>${content.innerHTML}</body></html>`)
+      printWin.document.close()
+      setTimeout(() => { printWin.print(); if (toolbar) toolbar.style.display = 'flex' }, 500)
+    }
+
     window._vskXamtaFile = (input) => {
       const file = input?.files?.[0]
       if (!file) return
@@ -1299,6 +1417,7 @@ export default function SuperHomePage() {
     return () => {
       delete window._vskToggle; delete window._vskSubmit
       delete window._vskToggleNL; delete window._vskNLAction
+      delete window._vskEditMode; delete window._vskTheme; delete window._vskDownloadPdf
       delete window._vskXamtaFile; delete window._vskXamtaScan
     }
   }, [])
@@ -1480,10 +1599,243 @@ export default function SuperHomePage() {
     )
   }, [collectState, activeBot, bots, addBot, openArtifact, role])
 
+  // ── Design Tool handler (Canva / Adobe) ──────────────────────────────────
+  const handleDesignTool = useCallback((text, tool) => {
+    setMessages(prev => [...prev, { id: Date.now(), role:'user', text: `[${tool === 'canva' ? '🎨 Canva' : '🅰️ Adobe'}] ${text}`, opts:[] }])
+    setActiveTool(null)
+    const q = text.toLowerCase()
+    const isLesson = q.includes('lesson') || q.includes('plan') || q.includes('teach')
+    const isReport = q.includes('report') || q.includes('card')
+
+    const toolLabel = tool === 'canva' ? 'Canva' : 'Adobe Express'
+    const g1 = tool === 'canva' ? '#7B2FF2' : '#E8344E'
+    const g2 = tool === 'canva' ? '#00C4CC' : '#1B1B2F'
+
+    const gradeMatch = q.match(/(?:grade|class)\s*(\d+)/i)
+    const grade = gradeMatch ? gradeMatch[1] : '6'
+    const topicMatch = q.match(/(?:on|about|for|topic)\s+(.+?)(?:\s+for|\s+grade|\s+class|$)/i)
+    const topic = topicMatch ? topicMatch[1].replace(/^(a|the)\s/i,'') : (isLesson ? 'Photosynthesis' : isReport ? 'Student Report' : 'School Notice')
+    const subject = q.includes('math') ? 'Mathematics' : q.includes('sci') ? 'Science' : q.includes('guj') ? 'Gujarati' : 'Science'
+
+    const themes = tool === 'canva'
+      ? [['#7B2FF2','#00C4CC'],['#FF6B6B','#FFC93C'],['#4361EE','#3A0CA3'],['#06D6A0','#118AB2'],['#F72585','#7209B7']]
+      : [['#E8344E','#1B1B2F'],['#FF6F3C','#2D132C'],['#0D1B2A','#1B263B'],['#2C3E50','#E74C3C'],['#1A1A2E','#E94560']]
+
+    // ── Toolbar HTML ──────────────────────────────────────────────────────
+    const toolbar = `
+      <div id="design-toolbar" style="display:flex;align-items:center;gap:8px;padding:12px 0;margin-bottom:12px;border-bottom:1px solid #E2E8F0;flex-wrap:wrap;font-family:Montserrat,sans-serif">
+        <button onclick="window._vskEditMode?.()" id="edit-toggle" style="padding:6px 14px;border-radius:8px;border:1.5px solid #E2E8F0;background:white;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">✏️ Edit Text</button>
+        <div style="display:flex;gap:4px;align-items:center">
+          <span style="font-size:10px;color:#999;font-weight:600">Theme:</span>
+          ${themes.map(([c1,c2],i) => `<div onclick="window._vskTheme?.('${c1}','${c2}')" style="width:20px;height:20px;border-radius:50%;background:linear-gradient(135deg,${c1},${c2});cursor:pointer;border:2px solid ${i===0?'#333':'transparent'}"></div>`).join('')}
+        </div>
+        <div style="flex:1"></div>
+        <button onclick="window._vskDownloadPdf?.()" style="padding:6px 14px;border-radius:8px;background:${g1};color:white;border:none;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">📥 Download PDF</button>
+      </div>`
+
+    // ── CANVA template ────────────────────────────────────────────────────
+    const canvaHtml = `
+      <div id="design-root" style="font-family:Montserrat,sans-serif;max-width:100%">
+        ${toolbar}
+        <div id="design-content">
+          <!-- Hero banner -->
+          <div id="hero-grad" style="background:linear-gradient(135deg,${g1},${g2});border-radius:20px;padding:28px 24px;color:white;margin-bottom:14px;position:relative;overflow:hidden">
+            <div style="position:absolute;top:-30px;right:-30px;width:140px;height:140px;border-radius:50%;background:rgba(255,255,255,0.08)"></div>
+            <div style="position:absolute;bottom:-40px;left:40%;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,0.05)"></div>
+            <div style="position:absolute;top:10px;right:16px;font-size:28px;opacity:0.25">🎨</div>
+            <div style="font-size:9px;font-weight:700;letter-spacing:2px;opacity:0.6;margin-bottom:8px">LESSON PLAN · CANVA</div>
+            <div contenteditable="false" class="ce" style="font-size:26px;font-weight:900;margin-bottom:6px;line-height:1.15;outline:none">${topic}</div>
+            <div contenteditable="false" class="ce" style="font-size:14px;opacity:0.85;outline:none">Grade ${grade} · ${subject}</div>
+            <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+              <span style="background:rgba(255,255,255,0.2);padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600">⏱ 45 min</span>
+              <span style="background:rgba(255,255,255,0.2);padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600">📍 ${SCHOOL}</span>
+              <span style="background:rgba(255,255,255,0.2);padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600">📅 ${TODAY}</span>
+            </div>
+          </div>
+
+          <!-- Quick info strip -->
+          <div style="display:flex;gap:6px;margin-bottom:14px">
+            ${[['👩‍🏫','Teacher','Priya Mehta'],['📖','Textbook','Ch. 7 — GCERT'],['🧪','Activity','Hands-on Lab'],['📊','Assessment','Exit Ticket']].map(([ic,l,v])=>`
+              <div style="flex:1;background:#F9FAFB;border:1px solid #E5E7EB;border-radius:12px;padding:8px;text-align:center">
+                <div style="font-size:16px;margin-bottom:2px">${ic}</div>
+                <div style="font-size:8px;color:#999;font-weight:700;letter-spacing:0.5px">${l.toUpperCase()}</div>
+                <div contenteditable="false" class="ce" style="font-size:10px;font-weight:600;color:#374151;outline:none">${v}</div>
+              </div>`).join('')}
+          </div>
+
+          <!-- 2-col: Objectives + Materials -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+            <div style="background:linear-gradient(135deg,#F0EAFF,#E8DFFF);border-radius:14px;padding:14px">
+              <div style="font-size:10px;font-weight:700;color:#7B2FF2;margin-bottom:8px;letter-spacing:0.5px">🎯 LEARNING OBJECTIVES</div>
+              <div contenteditable="false" class="ce" style="font-size:11px;color:#374151;line-height:1.7;outline:none">• Understand the concept of ${topic} and its significance<br>• Identify key elements through observation<br>• Apply knowledge to solve real-world problems<br>• Demonstrate understanding through group work<br>• Self-assess using exit ticket</div>
+            </div>
+            <div style="background:linear-gradient(135deg,#E0F7FA,#B2EBF2);border-radius:14px;padding:14px">
+              <div style="font-size:10px;font-weight:700;color:#00838F;margin-bottom:8px;letter-spacing:0.5px">📚 TEACHING MATERIALS</div>
+              <div contenteditable="false" class="ce" style="font-size:11px;color:#374151;line-height:1.7;outline:none">• Whiteboard + colored markers<br>• Chart paper with key diagrams<br>• G-SHALA digital module<br>• Printed practice worksheets<br>• Student notebooks & pencils</div>
+            </div>
+          </div>
+
+          <!-- Lesson flow timeline -->
+          <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:14px;padding:14px;margin-bottom:14px">
+            <div style="font-size:10px;font-weight:700;color:#B45309;margin-bottom:10px;letter-spacing:0.5px">⏱️ LESSON FLOW — 45 MINUTES</div>
+            ${[
+              {t:'5 min',ic:'🔔',title:'Warm-up & Hook',desc:'Begin with a thought-provoking question: "Why do leaves change color?" Show a 60-second video clip from G-SHALA.'},
+              {t:'12 min',ic:'📖',title:'Core Explanation',desc:`Use board work with colored diagrams to explain ${topic}. Reference textbook Ch. 7 with visual aids.`},
+              {t:'12 min',ic:'✍️',title:'Guided Practice',desc:'Solve 3 example problems together. Students complete 4 practice problems independently in notebooks.'},
+              {t:'10 min',ic:'👥',title:'Group Activity',desc:'Form groups of 4. Each group creates a mind-map of key concepts. Present findings to class (2 min each).'},
+              {t:'6 min',ic:'📝',title:'Assessment & Wrap-up',desc:'Exit ticket: 3 MCQs + 1 short answer. Collect, review, and preview next class topic.'},
+            ].map((s,i) => `
+              <div style="display:flex;gap:10px;margin-bottom:${i<4?'10':'0'}px;${i<4?'padding-bottom:10px;border-bottom:1px dashed #FDE68A':''}">
+                <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;width:36px">
+                  <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,${g1},${g2});color:white;font-size:12px;display:flex;align-items:center;justify-content:center">${s.ic}</div>
+                  ${i<4?'<div style="width:2px;flex:1;background:#FDE68A;margin-top:4px"></div>':''}
+                </div>
+                <div style="flex:1">
+                  <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+                    <span style="font-size:11px;font-weight:700;color:#374151">${s.title}</span>
+                    <span style="font-size:9px;padding:1px 6px;border-radius:10px;background:#FEF3C7;color:#92400E;font-weight:600">${s.t}</span>
+                  </div>
+                  <div contenteditable="false" class="ce" style="font-size:10.5px;color:#6B7280;line-height:1.5;outline:none">${s.desc}</div>
+                </div>
+              </div>`).join('')}
+          </div>
+
+          <!-- 3-col bottom cards -->
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+            <div style="background:#E8F5E9;border-radius:12px;padding:12px">
+              <div style="font-size:10px;font-weight:700;color:#2E7D32;margin-bottom:6px">🎓 LEARNING OUTCOMES</div>
+              <div contenteditable="false" class="ce" style="font-size:10px;color:#374151;line-height:1.6;outline:none">LO1: Recall concepts<br>LO2: Explain with examples<br>LO3: Solve problems<br>LO4: Apply to new scenarios</div>
+            </div>
+            <div style="background:#FFF0F0;border-radius:12px;padding:12px">
+              <div style="font-size:10px;font-weight:700;color:#DC2626;margin-bottom:6px">⚠️ DIFFERENTIATION</div>
+              <div contenteditable="false" class="ce" style="font-size:10px;color:#374151;line-height:1.6;outline:none">Advanced: Extension problems<br>Struggling: Peer buddy system<br>Visual: Extra diagram support<br>Kinesthetic: Lab activity</div>
+            </div>
+            <div style="background:#EEF2FF;border-radius:12px;padding:12px">
+              <div style="font-size:10px;font-weight:700;color:#4338CA;margin-bottom:6px">📋 HOMEWORK</div>
+              <div contenteditable="false" class="ce" style="font-size:10px;color:#374151;line-height:1.6;outline:none">• Textbook Ex. 7.3 (Q1-5)<br>• Draw and label diagram<br>• Write 5 real-world examples<br>• Due: Next class</div>
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div style="text-align:center;padding:10px;background:#F9FAFB;border-radius:10px;border:1px solid #E5E7EB">
+            <div style="font-size:9px;color:#999;font-weight:600">Generated with ${toolLabel} AI · VSK 3.0 Gujarat · ${TODAY}</div>
+          </div>
+        </div>
+      </div>`
+
+    // ── ADOBE template ────────────────────────────────────────────────────
+    const adobeHtml = `
+      <div id="design-root" style="font-family:'Segoe UI',Roboto,sans-serif;max-width:100%;color:#1B1B2F">
+        ${toolbar}
+        <div id="design-content">
+          <!-- Adobe hero — dark, typographic, sharp edges -->
+          <div id="hero-grad" style="background:linear-gradient(160deg,${g1} 0%,${g2} 100%);padding:32px 24px;color:white;margin-bottom:16px;position:relative;overflow:hidden">
+            <div style="position:absolute;inset:0;background:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2260%22><rect width=%2260%22 height=%2260%22 fill=%22none%22/><path d=%22M0 60L60 0%22 stroke=%22rgba(255,255,255,0.04)%22 stroke-width=%221%22/></svg>');opacity:0.5"></div>
+            <div style="position:relative;z-index:1">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+                <div style="width:3px;height:24px;background:${g1};border-radius:2px"></div>
+                <span style="font-size:10px;font-weight:800;letter-spacing:3px;text-transform:uppercase;opacity:0.6">LESSON PLAN</span>
+              </div>
+              <div contenteditable="false" class="ce" style="font-size:32px;font-weight:900;line-height:1.05;margin-bottom:8px;letter-spacing:-0.5px;outline:none">${topic}</div>
+              <div style="width:60px;height:3px;background:${g1};margin-bottom:12px"></div>
+              <div contenteditable="false" class="ce" style="font-size:14px;font-weight:400;opacity:0.8;outline:none">Grade ${grade} · ${subject} · ${SCHOOL}</div>
+              <div style="display:flex;gap:12px;margin-top:14px;font-size:11px;opacity:0.6">
+                <span>⏱ 45 min</span><span>📅 ${TODAY}</span><span>👩‍🏫 Priya Mehta</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Adobe stat bar -->
+          <div style="display:flex;gap:0;margin-bottom:16px;border:1px solid #E5E7EB;overflow:hidden">
+            ${[['Duration','45 min','⏱'],['Students','34','👥'],['Complexity','Medium','📊'],['Textbook','Ch. 7','📖'],['Assessment','Exit Ticket','📝']].map(([l,v,ic],i)=>`
+              <div style="flex:1;padding:10px 8px;text-align:center;${i>0?'border-left:1px solid #E5E7EB':''}">
+                <div style="font-size:14px;margin-bottom:2px">${ic}</div>
+                <div style="font-size:9px;color:#999;font-weight:700;letter-spacing:0.5px;text-transform:uppercase">${l}</div>
+                <div contenteditable="false" class="ce" style="font-size:11px;font-weight:700;color:#1B1B2F;outline:none">${v}</div>
+              </div>`).join('')}
+          </div>
+
+          <!-- Objectives & Materials — Adobe uses sharp left-border accent -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+            <div style="border-left:4px solid ${g1};padding:12px 14px;background:#FAFAFA">
+              <div style="font-size:10px;font-weight:800;color:${g1};margin-bottom:8px;letter-spacing:1px">LEARNING OBJECTIVES</div>
+              <div contenteditable="false" class="ce" style="font-size:11px;color:#4A4A4A;line-height:1.8;outline:none">① Understand the concept of ${topic}<br>② Identify and explain key elements<br>③ Apply knowledge to solve problems<br>④ Evaluate through group activity<br>⑤ Self-assess with exit questions</div>
+            </div>
+            <div style="border-left:4px solid #FF6F3C;padding:12px 14px;background:#FAFAFA">
+              <div style="font-size:10px;font-weight:800;color:#FF6F3C;margin-bottom:8px;letter-spacing:1px">RESOURCES & MATERIALS</div>
+              <div contenteditable="false" class="ce" style="font-size:11px;color:#4A4A4A;line-height:1.8;outline:none">① Whiteboard + colored markers<br>② Chart paper with key diagrams<br>③ G-SHALA digital content module<br>④ Printed practice worksheets (34×)<br>⑤ Notebooks, pencils, ruler</div>
+            </div>
+          </div>
+
+          <!-- Lesson flow — Adobe uses numbered blocks with sharp design -->
+          <div style="margin-bottom:16px">
+            <div style="font-size:10px;font-weight:800;color:#1B1B2F;letter-spacing:1px;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid #1B1B2F">LESSON FLOW — TIMELINE</div>
+            ${[
+              {t:'0–5',ph:'ENGAGE',ic:'🔔',title:'Hook & Warm-up',desc:`Open with: "What happens when a plant is kept in a dark room?" Show 60-sec G-SHALA video. Cold-call 3 students for predictions. Build curiosity for ${topic}.`,bg:'#FEF3C7',bc:'#F59E0B'},
+              {t:'5–17',ph:'EXPLAIN',ic:'📖',title:'Core Instruction',desc:`Board work: Draw labeled diagram of ${topic} process. Use colored markers for different stages. Students copy diagram. Reference GCERT textbook Ch. 7, pages 84-89. Pause for Q&A after each stage.`,bg:'#DBEAFE',bc:'#3B82F6'},
+              {t:'17–29',ph:'PRACTICE',ic:'✍️',title:'Guided & Independent',desc:'Solve 3 problems together on board (I do → We do). Students attempt 4 problems independently (You do). Walk around class — check for common errors. Give real-time verbal feedback.',bg:'#E0E7FF',bc:'#6366F1'},
+              {t:'29–39',ph:'COLLABORATE',ic:'👥',title:'Group Activity',desc:'Form 8 groups of 4. Each group: create mind-map poster of key concepts. Use chart paper + markers. Present to class (90 sec each). Peer scoring rubric.',bg:'#D1FAE5',bc:'#10B981'},
+              {t:'39–45',ph:'ASSESS',ic:'📝',title:'Wrap-up & Assessment',desc:'Exit ticket: 3 MCQs + 1 short answer. Collect and quick-scan. Show correct answers. Announce homework. Preview next class topic.',bg:'#FEE2E2',bc:'#EF4444'},
+            ].map((s,i) => `
+              <div style="display:flex;gap:0;margin-bottom:8px;border:1px solid #E5E7EB;overflow:hidden">
+                <div style="width:54px;background:${s.bg};display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 4px;flex-shrink:0;border-right:3px solid ${s.bc}">
+                  <div style="font-size:16px;margin-bottom:2px">${s.ic}</div>
+                  <div style="font-size:8px;font-weight:800;color:${s.bc}">${s.t}</div>
+                  <div style="font-size:7px;font-weight:700;color:${s.bc};letter-spacing:0.5px">${s.ph}</div>
+                </div>
+                <div style="flex:1;padding:10px 12px">
+                  <div style="font-size:12px;font-weight:700;color:#1B1B2F;margin-bottom:3px">${s.title}</div>
+                  <div contenteditable="false" class="ce" style="font-size:10.5px;color:#6B7280;line-height:1.55;outline:none">${s.desc}</div>
+                </div>
+              </div>`).join('')}
+          </div>
+
+          <!-- 3-col bottom -->
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+            <div style="border-left:3px solid #10B981;padding:10px 12px;background:#F9FAFB">
+              <div style="font-size:9px;font-weight:800;color:#10B981;letter-spacing:0.5px;margin-bottom:6px">LEARNING OUTCOMES</div>
+              <div contenteditable="false" class="ce" style="font-size:10px;color:#374151;line-height:1.6;outline:none">LO1: Define & recall<br>LO2: Explain with diagrams<br>LO3: Solve numericals<br>LO4: Apply to real life</div>
+            </div>
+            <div style="border-left:3px solid #F59E0B;padding:10px 12px;background:#F9FAFB">
+              <div style="font-size:9px;font-weight:800;color:#F59E0B;letter-spacing:0.5px;margin-bottom:6px">DIFFERENTIATION</div>
+              <div contenteditable="false" class="ce" style="font-size:10px;color:#374151;line-height:1.6;outline:none">Advanced: Extension Qs<br>Struggling: Peer buddy<br>Visual: Extra diagrams<br>Kinesthetic: Lab model</div>
+            </div>
+            <div style="border-left:3px solid #6366F1;padding:10px 12px;background:#F9FAFB">
+              <div style="font-size:9px;font-weight:800;color:#6366F1;letter-spacing:0.5px;margin-bottom:6px">HOMEWORK</div>
+              <div contenteditable="false" class="ce" style="font-size:10px;color:#374151;line-height:1.6;outline:none">• Ex. 7.3 (Q1-5)<br>• Draw labeled diagram<br>• 5 real-world examples<br>• Due: Next class</div>
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#1B1B2F;color:white;font-size:9px">
+            <span style="opacity:0.5">Adobe Express · VSK 3.0</span>
+            <span style="opacity:0.5">${SCHOOL} · ${TODAY}</span>
+          </div>
+        </div>
+      </div>`
+
+    const designHtml = tool === 'canva' ? canvaHtml : adobeHtml
+
+    const card = {
+      title: `${topic} — ${toolLabel}`,
+      icon: tool === 'canva' ? '🎨' : '🅰️',
+      subtitle: `Grade ${grade} · ${subject} · Created with ${toolLabel}`,
+      preview: `<div style="text-align:center;padding:8px"><div style="background:linear-gradient(135deg,${g1},${g2});border-radius:10px;padding:14px;color:white;font-size:13px;font-weight:700">${topic}<div style="font-size:10px;opacity:0.7;margin-top:4px">Grade ${grade} · ${subject}</div></div></div>`,
+      fullHtml: designHtml,
+      timestamp: Date.now(),
+    }
+
+    addBot(`✨ Your lesson plan has been created with ${toolLabel}! Tap the card to view, edit text, change theme, or download as PDF.`, [], {
+      card,
+      progress: [`Opening ${toolLabel} workspace...`, 'Selecting template...', 'Generating design with AI...', 'Adding images and graphics...', 'Finalizing layout...'],
+    })
+  }, [addBot])
+
   const handleNew = () => {
     setMessages([])
     setCollect(null)
     setArtifact(null)
+    setActiveTool(null)
     setSession('New Chat')
     setSidebar(false)
   }
@@ -1581,7 +1933,14 @@ export default function SuperHomePage() {
                 </>
               )}
             </div>
-            <InputBar onSend={handleSend} disabled={typing || !!progressSteps} activeBot={activeBot} />
+            <InputBar
+              onSend={(text, tool) => tool ? handleDesignTool(text, tool) : handleSend(text)}
+              disabled={typing || !!progressSteps}
+              activeBot={activeBot}
+              activeTool={activeTool}
+              onToolSelect={setActiveTool}
+              onAttach={(file) => addBot(`📎 File "${file.name}" received. What would you like to do with it?`, ['Scan with XAMTA', 'Attach to report', 'Upload to CTS'])}
+            />
           </div>
 
           {/* Artifact panel — desktop inline */}
