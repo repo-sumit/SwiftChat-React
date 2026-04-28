@@ -14,10 +14,19 @@
 const kw = (...words) => new RegExp(`\\b(${words.join('|')})\\b`, 'i')
 
 // Each rule: { match: RegExp | (text)=>boolean, action: string }
+//
+// Order matters — patterns that should win must appear first. State-changing
+// actions (e.g. parent alerts) are placed above the more generic intents
+// (e.g. SHOW_ABSENT_STUDENTS) so a phrase like "send parent alert to absent
+// students" routes to the parent-alert action.
 export const PATTERNS = [
+  // ── Parent alerts (must precede `absent` so combined phrasings route here) ─
+  { match: /parent\s*alert|notify\s*parent|whatsapp\s*alert|sms\s*alert|parent\s*ko\s*bhejo/i, action: 'SEND_PARENT_ALERT' },
+
   // ── DigiVritti — most specific intents first ─────────────────────────────
   { match: /reject(ed)?|fix\s+rejected|correct\s+rejected/i,                 action: 'OPEN_REJECTED_APPLICATIONS' },
-  { match: /payment\s*queue|failed\s*payment|payment\s*retry|utr/i,          action: 'OPEN_PAYMENT_QUEUE' },
+  // Payment queue — handle plural ("payments queue") + filter words.
+  { match: /payments?\s*queue|failed\s*payments?|pending\s*payments?|success\s*payments?|payments?\s*retry|utr/i, action: 'OPEN_PAYMENT_QUEUE' },
   { match: /(application|app)\s*list|track(\s+applications?)?/i,             action: 'OPEN_APPLICATION_LIST' },
   { match: /\b(namo\s*saraswati|namo_saraswati|saraswati)\b/i,               action: 'OPEN_NAMO_SARASWATI' },
   { match: /\b(namo\s*lakshmi|namo\s*laxmi|namo_lakshmi|namo_laxmi|nly|namo)\b/i, action: 'OPEN_NAMO_LAKSHMI' },
@@ -35,14 +44,19 @@ export const PATTERNS = [
   // ── Dashboards / reports / performance ───────────────────────────────────
   { match: /\b(state\s*dashboard|state\s*kpi|state\s*command|state\s*intelligence)\b/i, action: 'OPEN_STATE_DASHBOARD' },
   { match: /\b(district\s*dashboard|district\s*drilldown|block\s*analysis)\b/i,        action: 'OPEN_DISTRICT_DASHBOARD' },
+  { match: /\b(report\s*card|generate\s*report|student\s*report\s*card)\b/i, action: 'OPEN_REPORT_CARD' },
+  // Class N + any of (report|performance|dashboard|progress|summary) → class dashboard.
+  // This row catches "Class 8 ka performance report dikhao" before the
+  // generic "performance report" rule below. The .* is bounded by the report
+  // keywords so it won't gobble unrelated text.
+  { match: /\bclass\s*\d.{0,30}?\b(report|performance|dashboard|progress|summary)\b/i, action: 'OPEN_CLASS_DASHBOARD' },
+  // Plain student-level reports — only when no class number was given.
+  { match: /\b(student\s*report|performance\s*report|student\s*performance\s*report)\b/i, action: 'OPEN_STUDENT_REPORT' },
+  // Class N or "class dashboard / class progress" without report-words.
   { match: /\b(class\s*\d|class\s*(report|performance|dashboard|progress|summary))\b|student\s*performance/i, action: 'OPEN_CLASS_DASHBOARD' },
   { match: /\b(school\s*dashboard|school\s*kpi|attendance\s*summary|school\s*overview)\b/i, action: 'OPEN_SCHOOL_DASHBOARD' },
-  { match: /\b(report\s*card|generate\s*report|student\s*report\s*card)\b/i, action: 'OPEN_REPORT_CARD' },
-  { match: /\b(student\s*report|performance\s*report|report)\b/i,            action: 'OPEN_STUDENT_REPORT' },
+  { match: /\breport\b/i,                                                    action: 'OPEN_STUDENT_REPORT' },
   { match: /\bdashboard\b|दिखाओ\s*dashboard/i,                               action: 'OPEN_SCHOOL_DASHBOARD' },
-
-  // ── Parent alerts ─────────────────────────────────────────────────────────
-  { match: /parent\s*alert|notify\s*parent|whatsapp\s*alert|sms\s*alert|parent\s*ko\s*bhejo/i, action: 'SEND_PARENT_ALERT' },
 ]
 
 // ─── Entity extraction ───────────────────────────────────────────────────────

@@ -46,15 +46,28 @@ export async function interpret({ text, role }) {
   if (remoteInterpreter) {
     try {
       const remote = await remoteInterpreter({ text, role, entities })
-      if (remote && remote.actionId) {
-        return {
-          actionId: remote.actionId,
-          entities: { ...entities, ...(remote.entities || {}) },
-          confidence: typeof remote.confidence === 'number' ? remote.confidence : 0.7,
-          source: 'llm',
-          // Friendly prelude text + chips the LLM offered. Optional — the
-          // router uses these for the bot bubble that precedes the directive.
-          meta: remote.meta || null,
+      if (remote) {
+        // RAG-grounded answer — short-circuit straight to caller. No action
+        // resolution needed.
+        if (remote.answer && remote.answer.text) {
+          return {
+            actionId: null,
+            entities,
+            confidence: typeof remote.confidence === 'number' ? remote.confidence : 0.85,
+            source: 'rag',
+            answer: remote.answer,
+          }
+        }
+        if (remote.actionId) {
+          return {
+            actionId: remote.actionId,
+            entities: { ...entities, ...(remote.entities || {}) },
+            confidence: typeof remote.confidence === 'number' ? remote.confidence : 0.7,
+            source: 'llm',
+            // Friendly prelude text + chips the LLM offered. Optional — the
+            // router uses these for the bot bubble that precedes the directive.
+            meta: remote.meta || null,
+          }
         }
       }
     } catch {

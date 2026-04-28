@@ -17,6 +17,7 @@ import { dispatchDigiVritti, isDigiVrittiTrigger } from '../utils/digivrittiChat
 import { groupByRecency, detectTool, TOOL_TITLES } from '../utils/chatHistory'
 import { routeIntentSync, routeIntent } from '../nlp/globalIntentRouter'
 import { isRemoteEnabled } from '../nlp/groqInterpreter'
+import { aiAnswerCardHtml } from '../nlp/aiAnswerCard'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS
@@ -2190,6 +2191,22 @@ export default function SuperHomePage() {
     // Shared dispatch — routes a router result (sync or async) to chat/canvas.
     // Returns true if the result was handled, false on `unknown`.
     const dispatchNlpResult = (nlp) => {
+      if (nlp.kind === 'answer') {
+        // RAG-grounded knowledge answer. Render as an inline HTML card with
+        // citations. No action fired — answers are explanatory only.
+        pendingNlp.current = null
+        addBot('', [], {
+          html: aiAnswerCardHtml({
+            text: nlp.text,
+            citations: nlp.citations,
+            language: nlp.language,
+          }),
+          actions: [
+            { label: '🔁 Ask another question', trigger: 'Ask DigiVritti AI', variant: 'primary' },
+          ],
+        })
+        return true
+      }
       if (nlp.kind === 'execute') {
         pendingNlp.current = null
         const d = nlp.directive || {}

@@ -28,21 +28,26 @@ export function isRemoteEnabled() {
 }
 
 // Returns the strict backend payload (or null on any failure).
-export async function callRemote({ text, role, signal }) {
+// path: 'message' (default — orchestrator: action OR answer)
+//     | 'interpret' (action only)
+//     | 'rag/query' (RAG only)
+export async function callRemote({ text, role, signal, path = 'message' }) {
   const base = getApiUrl()
   if (!base) return null
-  const url = base.replace(/\/$/, '') + '/interpret'
+  const url = base.replace(/\/$/, '') + '/' + path
 
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
-  // Allow the caller's signal to also abort us.
   signal?.addEventListener?.('abort', () => controller.abort(), { once: true })
+
+  // /rag/query expects `question`, the other endpoints expect `text`.
+  const body = path === 'rag/query' ? { question: text, role } : { text, role }
 
   try {
     const resp = await fetch(url, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ text, role }),
+      body: JSON.stringify(body),
       signal: controller.signal,
     })
     if (!resp.ok) return null
@@ -57,18 +62,39 @@ export async function callRemote({ text, role, signal }) {
 }
 
 // aiClient interpreter contract — see registerRemoteInterpreter.
+//
+// Supports two backend response shapes via `responseType`:
+//   - 'action' → action classification (intent / entities / confidence)
+//   - 'answer' → RAG-grounded answer (assistantText + citations)
+//
+// For 'answer' shape, returns { actionId: null, answer: {...} }. The router
+// converts that into a `kind: 'answer'` directive.
 export async function groqInterpreter({ text, role }) {
-  const remote = await callRemote({ text, role })
+  const remote = await callRemote({ text, role, path: 'message' })
   if (!remote) return null
+
+  // ── Answer (RAG) path ──
+  if (remote.responseType === 'answer') {
+    if (!remote.assistantText) return null
+    return {
+      actionId: null,
+      entities: {},
+      confidence: 0.85,
+      answer: {
+        text: remote.assistantText,
+        citations: Array.isArray(remote.citations) ? remote.citations : [],
+        language: remote.language || 'en',
+      },
+    }
+  }
+
+  // ── Action (intent) path ── (responseType 'action' OR legacy /interpret)
   if (!remote.intent) return null
   if (typeof remote.confidence === 'number' && remote.confidence < MIN_CONFIDENCE) return null
   return {
     actionId: remote.intent,
     entities: remote.entities && typeof remote.entities === 'object' ? remote.entities : {},
     confidence: typeof remote.confidence === 'number' ? remote.confidence : 0.7,
-    // Pass through the friendly text + chips so the chat layer can show them
-    // alongside the executed directive. aiClient.interpret merges these onto
-    // its return value via the `meta` slot below.
     meta: {
       assistantText: remote.assistantText || '',
       chips: Array.isArray(remote.chips) ? remote.chips : [],

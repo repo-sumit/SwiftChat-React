@@ -75,6 +75,18 @@ export async function routeIntent({ text, role, pendingAction = null, accumulate
   // ── Fresh interpretation path. ─────────────────────────────────────────
   const r = await interpret({ text, role })
 
+  // RAG answer short-circuit. No actionId; just hand the answer card to the
+  // chat layer.
+  if (r.answer && r.answer.text) {
+    return {
+      kind: 'answer',
+      text: r.answer.text,
+      citations: r.answer.citations || [],
+      language: r.answer.language || 'en',
+      source: r.source || 'rag',
+    }
+  }
+
   if (r.actionId) {
     const action = getAction(r.actionId)
     if (!action) return { kind: 'unknown' }
