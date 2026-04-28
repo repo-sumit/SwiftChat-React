@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react'
+import React, { createContext, useContext, useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { USER_PROFILES } from '../data/mockData'
+import * as chatHistory from '../utils/chatHistory'
 
 const AppContext = createContext(null)
 
@@ -75,6 +76,106 @@ export function AppProvider({ children }) {
   // persistence effect from re-saving stale state during the sign-out tear-down.
   const signingOut = useRef(false)
 
+  // ── Chat history (per-user, localStorage-backed) ──────────────────────────
+  // userId derived from the profile's stateId/employeeId, falling back to
+  // role. Keys all chat sessions so different users never see each other's.
+  const userId = chatHistory.userIdFor(userProfile, role)
+  // `chatTick` is bumped to force consumers to re-read from localStorage
+  // after any mutation routed through the helpers below.
+  const [chatTick, setChatTick] = useState(0)
+  const bumpChats = useCallback(() => setChatTick(t => t + 1), [])
+  const [activeChatId, setActiveChatIdState] = useState(() =>
+    role ? chatHistory.getActiveChatId(chatHistory.userIdFor(userProfile, role)) : null
+  )
+
+  const refreshActiveChat = useCallback(() => {
+    if (!role) { setActiveChatIdState(null); return null }
+    const uid = chatHistory.userIdFor(userProfile, role)
+    const id  = chatHistory.getActiveChatId(uid)
+    setActiveChatIdState(id)
+    return id
+  }, [role, userProfile])
+
+  // Re-read the active chat pointer whenever the logged-in user changes.
+  useEffect(() => { refreshActiveChat() }, [refreshActiveChat])
+
+  const userChats = useMemo(() => {
+    if (!role) return []
+    return chatHistory.getChatsForUser(userId)
+    // chatTick re-evaluates after mutations; userId switches the user.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, role, chatTick])
+
+  const activeChat = useMemo(() => {
+    if (!activeChatId) return null
+    return chatHistory.getChatById(activeChatId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeChatId, chatTick])
+
+  const createChat = useCallback((opts = {}) => {
+    if (!role) return null
+    const uid = chatHistory.userIdFor(userProfile, role)
+    const chat = chatHistory.createChat({
+      userId: uid, role,
+      title: opts.title,
+      tool: opts.tool,
+      initialMessages: opts.initialMessages,
+    })
+    setActiveChatIdState(chat.id)
+    bumpChats()
+    return chat
+  }, [role, userProfile, bumpChats])
+
+  const switchChat = useCallback((chatId) => {
+    if (!role || !chatId) return
+    const uid = chatHistory.userIdFor(userProfile, role)
+    chatHistory.setActiveChatId(uid, chatId)
+    setActiveChatIdState(chatId)
+    bumpChats()
+  }, [role, userProfile, bumpChats])
+
+  const appendMessage = useCallback((chatId, message) => {
+    if (!chatId) return null
+    const result = chatHistory.appendMessage(chatId, message)
+    bumpChats()
+    return result
+  }, [bumpChats])
+
+  const setChatMessages = useCallback((chatId, messages) => {
+    if (!chatId) return null
+    const result = chatHistory.setMessages(chatId, messages)
+    bumpChats()
+    return result
+  }, [bumpChats])
+
+  const updateChatCanvas = useCallback((chatId, canvasState) => {
+    if (!chatId) return null
+    const result = chatHistory.updateCanvas(chatId, canvasState)
+    bumpChats()
+    return result
+  }, [bumpChats])
+
+  const updateChatToolState = useCallback((chatId, toolState) => {
+    if (!chatId) return null
+    const result = chatHistory.updateToolState(chatId, toolState)
+    bumpChats()
+    return result
+  }, [bumpChats])
+
+  const renameChat = useCallback((chatId, title) => {
+    chatHistory.renameChat(chatId, title); bumpChats()
+  }, [bumpChats])
+
+  const deleteChat = useCallback((chatId) => {
+    chatHistory.deleteChat(chatId); bumpChats()
+    // If we deleted the active chat, refresh the pointer.
+    if (chatId === activeChatId) {
+      const uid = chatHistory.userIdFor(userProfile, role)
+      const next = chatHistory.getActiveChatId(uid)
+      setActiveChatIdState(next)
+    }
+  }, [activeChatId, role, userProfile, bumpChats])
+
   // Persist on every change to durable state. We DO NOT clear the session
   // here when role becomes null — that path is owned exclusively by
   // signOut(), so anonymous splash/login flows never wipe a fresh session.
@@ -145,6 +246,11 @@ export function AppProvider({ children }) {
       ssoState, setSsoState,
       signOut,
       isAuthenticated: !!role,
+      // Chat history — per-user, localStorage-backed.
+      userId,
+      chats: userChats, activeChatId, activeChat,
+      createChat, switchChat, appendMessage, setChatMessages,
+      updateChatCanvas, updateChatToolState, renameChat, deleteChat,
     }}>
       {children}
     </AppContext.Provider>

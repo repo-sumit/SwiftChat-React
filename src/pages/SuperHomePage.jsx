@@ -14,18 +14,13 @@ import {
 } from '../data/mockData'
 import { ROLE_BOTS, ROLE_SUGGESTIONS } from '../roles/roleConfig'
 import { dispatchDigiVritti, isDigiVrittiTrigger } from '../utils/digivrittiChat'
+import { groupByRecency, detectTool, TOOL_TITLES } from '../utils/chatHistory'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS
 // ─────────────────────────────────────────────────────────────────────────────
 const SCHOOL = SCHOOL_INFO?.name || 'Sardar Patel Prathmik Shala'
 const TODAY = new Date().toLocaleDateString('en-GB',{ day:'2-digit',month:'2-digit',year:'numeric' }).replace(/\//g,'/')
-
-const CHAT_HISTORY = {
-  TODAY:    ['VSK 3.0 Demo Session','Block attendance review','Grade 6 lesson planning'],
-  YESTERDAY:['District quarterly report','Scholarship coverage analysis'],
-  'PREVIOUS 7 DAYS':['State KPI dashboard','Inspection readiness check'],
-}
 
 // Role metadata — reads from USER_PROFILES when available
 const ROLE_META = {
@@ -811,7 +806,7 @@ function greetingReply(text, _botName, role, profile) {
 // UI COMPONENTS
 // ─────────────────────────────────────────────────────────────────────────────
 
-function VSKSidebar({ onNew, activeSession, onSelect, role, userProfile, onClose, onSignOut }) {
+function VSKSidebar({ onNew, activeChatId, chatGroups, onSelect, onDelete, role, userProfile, onClose, onSignOut }) {
   const meta = userProfile || ROLE_META[role] || ROLE_META.teacher
   const initial = (meta.name || 'U')[0].toUpperCase()
   // Title/Large: 16px Bold; Caption: 11px Medium
@@ -856,31 +851,61 @@ function VSKSidebar({ onNew, activeSession, onSelect, role, userProfile, onClose
         </div>
       </div>
 
-      {/* History */}
+      {/* History — real persisted chat sessions for the current user */}
       <div className="flex-1 overflow-y-auto px-2 pb-2">
-        {Object.entries(CHAT_HISTORY).map(([section, items]) => (
-          <div key={section} className="mb-3">
-            <div className="px-3 py-2" style={{ ...caption, color: '#828996', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{section}</div>
-            {items.map((item, i) => (
-              <button
-                key={i}
-                onClick={() => onSelect && onSelect(item)}
-                className="w-full text-left px-3 py-2 transition-colors"
-                style={{
-                  fontSize: 14, lineHeight: '20px', letterSpacing: '0.25px', fontFamily: 'Montserrat, sans-serif',
-                  borderRadius: 8,
-                  background: activeSession === item ? '#ECECEC' : 'transparent',
-                  color: activeSession === item ? '#0E0E0E' : '#7383A5',
-                  fontWeight: activeSession === item ? 500 : 400,
-                }}
-                onMouseEnter={e => { if (activeSession !== item) e.currentTarget.style.background = '#ECECEC' }}
-                onMouseLeave={e => { if (activeSession !== item) e.currentTarget.style.background = 'transparent' }}
-              >
-                {item}
-              </button>
-            ))}
-          </div>
-        ))}
+        {(() => {
+          const sections = chatGroups || {}
+          const ordered = ['TODAY', 'YESTERDAY', 'PREVIOUS 7 DAYS', 'OLDER']
+          const totalChats = ordered.reduce((n, k) => n + (sections[k]?.length || 0), 0)
+          if (totalChats === 0) {
+            return (
+              <div className="px-4 py-6 text-center" style={{ ...caption, color: '#828996' }}>
+                No chats yet. Click + to start one, or pick a Quick Action on the right.
+              </div>
+            )
+          }
+          return ordered.map(section => {
+            const items = sections[section] || []
+            if (items.length === 0) return null
+            return (
+              <div key={section} className="mb-3">
+                <div className="px-3 py-2" style={{ ...caption, color: '#828996', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{section}</div>
+                {items.map(chat => (
+                  <button
+                    key={chat.id}
+                    onClick={() => onSelect && onSelect(chat.id)}
+                    className="w-full text-left px-3 py-2 transition-colors"
+                    style={{
+                      fontSize: 14, lineHeight: '20px', letterSpacing: '0.25px', fontFamily: 'Montserrat, sans-serif',
+                      borderRadius: 8,
+                      background: activeChatId === chat.id ? '#ECECEC' : 'transparent',
+                      color: activeChatId === chat.id ? '#0E0E0E' : '#7383A5',
+                      fontWeight: activeChatId === chat.id ? 500 : 400,
+                      display: 'flex', alignItems: 'center', gap: 8,
+                    }}
+                    onMouseEnter={e => { if (activeChatId !== chat.id) e.currentTarget.style.background = '#ECECEC' }}
+                    onMouseLeave={e => { if (activeChatId !== chat.id) e.currentTarget.style.background = 'transparent' }}
+                  >
+                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {chat.title || 'New chat'}
+                    </span>
+                    {onDelete && (
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        aria-label="Delete chat"
+                        onClick={(e) => { e.stopPropagation(); onDelete(chat.id) }}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); onDelete(chat.id) } }}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                        style={{ color: '#828996', fontSize: 14, padding: '0 4px', cursor: 'pointer', display: 'inline-flex' }}
+                      >×</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )
+          })
+        })()}
       </div>
 
       {/* User footer */}
@@ -1433,7 +1458,11 @@ function ArtifactModal({ artifact, onClose }) {
 // MAIN COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
 export default function SuperHomePage() {
-  const { role, userProfile, signOut, openCanvas } = useApp()
+  const {
+    role, userProfile, signOut, openCanvas,
+    chats: userChats, activeChatId, activeChat,
+    createChat, switchChat, setChatMessages, deleteChat, renameChat,
+  } = useApp()
   const bots = ROLE_BOTS[role] || ROLE_BOTS.teacher || ['VSK 3.0']
   const [activeBot, setActiveBot]   = useState(bots[0])
   const [messages, setMessages]     = useState([])
@@ -1446,6 +1475,12 @@ export default function SuperHomePage() {
   const [webviewCard, setWebview]    = useState(null)  // opened card for webview
   const [activeTool, setActiveTool]  = useState(null)  // 'canva' | 'adobe' | null
   const bottomRef = useRef(null)
+  // Track which chat the local `messages` array currently mirrors. Prevents
+  // the persist effect from writing the previous chat's messages into a
+  // freshly switched chat during the brief window between activeChatId
+  // changing and the hydrate effect resetting `messages`.
+  const hydratedFor = useRef(null)
+  const persistTimer = useRef(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -1456,6 +1491,42 @@ export default function SuperHomePage() {
     const newBots = ROLE_BOTS[role] || ['VSK 3.0']
     setActiveBot(newBots[0])
   }, [role])
+
+  // Hydrate local `messages` from the active chat whenever it changes
+  // (login, sidebar click, "New chat", etc.).
+  useEffect(() => {
+    if (!activeChatId) {
+      setMessages([])
+      hydratedFor.current = null
+      return
+    }
+    // Read fresh from localStorage rather than the closed-over `activeChat`
+    // memo, since this effect must fire as soon as the id flips.
+    const persisted = (userChats || []).find(c => c.id === activeChatId)
+    setMessages(persisted?.messages || [])
+    setCollect(null); setArtifact(null); setActiveTool(null)
+    hydratedFor.current = activeChatId
+    // We DO NOT depend on userChats — that would re-hydrate every save tick.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeChatId])
+
+  // Persist local `messages` back to the active chat (debounced 250 ms).
+  // Auto-title from the first user message if the chat is still untitled.
+  useEffect(() => {
+    if (!activeChatId) return
+    if (hydratedFor.current !== activeChatId) return  // skip until hydrated
+    clearTimeout(persistTimer.current)
+    persistTimer.current = setTimeout(() => {
+      setChatMessages(activeChatId, messages)
+      const cur = (userChats || []).find(c => c.id === activeChatId)
+      if (cur && cur.title === 'New chat') {
+        const firstUser = messages.find(m => m.role === 'user' && m.text)
+        if (firstUser) renameChat(activeChatId, firstUser.text.slice(0, 40))
+      }
+    }, 250)
+    return () => clearTimeout(persistTimer.current)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, activeChatId])
 
   // Window globals for interactive inline cards
   useEffect(() => {
@@ -1739,6 +1810,19 @@ export default function SuperHomePage() {
   const openArtifact = useCallback((af) => setArtifact(af), [])
 
   const handleSend = useCallback((text) => {
+    // ── Lazy chat creation — if the user fires off an action before any
+    // chat exists, spin one up so messages have somewhere to persist.
+    // We mark hydratedFor so the persist effect knows it can write straight
+    // away rather than waiting for a follow-up render.
+    if (!activeChatId && role) {
+      const tool = detectTool(text)
+      const title = tool
+        ? TOOL_TITLES[tool]
+        : (text && text.length < 40 ? text : 'New chat')
+      const created = createChat({ title, tool: tool || null })
+      if (created?.id) hydratedFor.current = created.id
+    }
+
     // ── DigiVritti — intercepted before any other handler so the cryptic
     // `dv:*` triggers don't leak into the user bubble area.
     if (isDigiVrittiTrigger(text)) {
@@ -2060,7 +2144,7 @@ export default function SuperHomePage() {
     ]
     addBot(smartFallbacks[Math.floor(Math.random() * smartFallbacks.length)],
       fallbackOpts[role] || fallbackOpts.teacher)
-  }, [collectState, activeBot, bots, addBot, openArtifact, role, userProfile, openCanvas])
+  }, [collectState, activeBot, bots, addBot, openArtifact, role, userProfile, openCanvas, activeChatId, createChat])
 
   // ── Design Tool handler (Canva / Adobe) ──────────────────────────────────
   const handleDesignTool = useCallback((text, tool) => {
@@ -2296,14 +2380,34 @@ export default function SuperHomePage() {
     })
   }, [addBot])
 
-  const handleNew = () => {
-    setMessages([])
+  const handleNew = useCallback(() => {
+    // Persist any pending messages on the current chat first.
+    if (activeChatId && messages.length > 0) setChatMessages(activeChatId, messages)
+    // Create a fresh chat — context flips activeChatId, the hydration effect
+    // will then clear local messages.
+    createChat({ title: 'New chat' })
     setCollect(null)
     setArtifact(null)
     setActiveTool(null)
-    setSession('New Chat')
     setSidebar(false)
-  }
+  }, [activeChatId, messages, createChat, setChatMessages])
+
+  const handleSelectChat = useCallback((chatId) => {
+    if (!chatId || chatId === activeChatId) { setSidebar(false); return }
+    // Save the current chat's messages before switching away.
+    if (activeChatId && messages.length > 0) setChatMessages(activeChatId, messages)
+    switchChat(chatId)
+    setCollect(null)
+    setArtifact(null)
+    setActiveTool(null)
+    setSidebar(false)
+  }, [activeChatId, messages, switchChat, setChatMessages])
+
+  // Grouped chats for the sidebar — only ever shows the current user's chats.
+  const chatGroups = React.useMemo(
+    () => groupByRecency(userChats || []),
+    [userChats]
+  )
 
   const hasMessages = messages.length > 0
 
@@ -2322,8 +2426,15 @@ export default function SuperHomePage() {
       `}>
         <VSKSidebar
           onNew={handleNew}
-          activeSession={activeSession}
-          onSelect={s => { setSession(s); setSidebar(false) }}
+          activeChatId={activeChatId}
+          chatGroups={chatGroups}
+          onSelect={handleSelectChat}
+          onDelete={(id) => {
+            // Don't allow deleting the chat you're currently in without a
+            // replacement — keep things simple, switch to another first.
+            if (id === activeChatId) return
+            deleteChat(id)
+          }}
           role={role}
           userProfile={userProfile}
           onClose={() => setSidebar(false)}
