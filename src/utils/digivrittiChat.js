@@ -228,6 +228,7 @@ function welcome(role, profile) {
       { label: '💾 Continue Draft',            trigger: 'dv:t:draft',                  variant: 'warn'    },
       { label: '🔁 Track Applications',        trigger: 'dv:canvas:list',              variant: 'primary' },
       { label: '🔄 Correct Rejected',          trigger: 'dv:t:correct',                variant: 'err'     },
+      { label: '🔂 Returning Student',         trigger: 'dv:t:returning',              variant: 'primary' },
       { label: '🚫 Opt Out Student',           trigger: 'dv:canvas:opt-out',           variant: 'warn'    },
       { label: '📋 Application List',          trigger: 'dv:canvas:list',              variant: 'primary' },
       { label: '✨ Ask DigiVritti AI',         trigger: 'dv:t:ai',                     variant: 'primary' },
@@ -433,6 +434,27 @@ function teacherSimple(step) {
     actions: [
       { label: '🏠 DigiVritti home', trigger: 'dv:start', variant: 'primary' },
     ],
+  }
+  if (step === 'returning') {
+    // Pull the curated returning-student app (Princy, Class 11 → 12).
+    const returning = (getApplications({}) || []).find(a => a.returning === true)
+      || (getApplications({}) || []).find(a => a.appId === 'NS2025GJ0050')
+    if (!returning) {
+      return {
+        text: `🔁 No returning students on file yet. Once a student renews next year, they'll appear here with last year's data pre-filled.`,
+        actions: [
+          { label: '🏠 DigiVritti home', trigger: 'dv:start', variant: 'primary' },
+        ],
+      }
+    }
+    return {
+      text: `✅ Returning student verified:\n\n• Previous grade: Class ${returning.previousGrade || returning.grade - 1}\n• Previous status: ${returning.previousStatus || 'APPROVED'}\n• Same school: ${returning.school}\n• Auto-progressed to Class ${returning.grade}-${returning.section}\n\nAll details are pre-filled. Confirm to submit?`,
+      html: `<div style="font-family:${C.font};display:flex;flex-wrap:wrap;gap:6px">${chip('Grade progressed', 'success', '✓')} ${chip('Same school', 'success', '✓')} ${chip('Previous: ' + (returning.previousStatus || 'APPROVED'), 'info', '🗂')}</div>`,
+      actions: [
+        { label: `📝 Open & confirm — ${returning.studentName}`, trigger: `dv:canvas:edit:${returning.appId}`, variant: 'primary' },
+        { label: '🏠 DigiVritti home', trigger: 'dv:start', variant: 'primary' },
+      ],
+    }
   }
   if (step === 'draft') return {
     text: `📂 You have 1 draft pending:`,
