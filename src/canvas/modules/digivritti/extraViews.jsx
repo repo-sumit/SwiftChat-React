@@ -859,9 +859,10 @@ function AIResultsTable({ rows }) {
     <div style={{
       background: C.surface, border: `1px solid ${C.borderDefault}`,
       borderRadius: 12, overflow: 'hidden',
+      maxWidth: '100%', minWidth: 0, boxSizing: 'border-box',
     }}>
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: FONT }}>
+      <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', maxWidth: '100%' }}>
+        <table style={{ minWidth: 'max-content', width: '100%', borderCollapse: 'collapse', fontFamily: FONT }}>
           <thead style={{ background: C.surfaceTint }}>
             <tr>
               {keys.map(k => (
@@ -903,6 +904,7 @@ function AISqlPanel({ sql }) {
     <div style={{
       background: '#0E0E0E', borderRadius: 12, overflow: 'hidden',
       fontFamily: 'SFMono-Regular,Menlo,Consolas,monospace',
+      maxWidth: '100%', minWidth: 0, boxSizing: 'border-box',
     }}>
       <div style={{
         padding: '8px 14px', borderBottom: '1px solid #1F2233',
@@ -913,6 +915,7 @@ function AISqlPanel({ sql }) {
         margin: 0, padding: '12px 14px', color: '#E2EAFF',
         fontSize: 12, lineHeight: '20px',
         whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+        overflowWrap: 'anywhere', maxWidth: '100%',
       }}>{sql}</pre>
     </div>
   )
@@ -925,17 +928,19 @@ function AIInsightPanel({ text }) {
       background: C.successBanner, border: `1px solid ${C.success}`,
       borderRadius: 12, padding: '12px 14px',
       display: 'flex', gap: 10, alignItems: 'flex-start',
+      maxWidth: '100%', minWidth: 0, boxSizing: 'border-box',
     }}>
-      <span style={{ fontSize: 18, lineHeight: '18px' }}>💡</span>
-      <div style={{ flex: 1 }}>
+      <span style={{ fontSize: 18, lineHeight: '18px', flexShrink: 0 }}>💡</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
           fontSize: 11, fontWeight: 700, letterSpacing: '0.3px',
           color: C.successText, textTransform: 'uppercase', marginBottom: 2,
           fontFamily: FONT,
         }}>AI Insight</div>
         <div style={{
-          fontSize: 13, lineHeight: '20px', color: C.successText,
+          fontSize: 13, lineHeight: 1.5, color: C.successText,
           fontWeight: 500, fontFamily: FONT,
+          overflowWrap: 'anywhere', wordBreak: 'break-word',
         }}>{text}</div>
       </div>
     </div>

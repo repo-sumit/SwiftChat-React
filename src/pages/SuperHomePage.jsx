@@ -1062,15 +1062,17 @@ function MessageBubble({ msg, onChipClick, onAction, onCardClick }) {
       {!isUser && (
         <div className="w-7 h-7 rounded-full bg-[#386AF6] flex items-center justify-center text-white font-bold text-[12px] flex-shrink-0 self-end">V</div>
       )}
-      <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} ${hasWide ? 'max-w-[92%] md:max-w-[82%]' : 'max-w-[75%]'}`}>
+      <div className={`flex flex-col min-w-0 ${isUser ? 'items-end' : 'items-start'} ${hasWide ? 'flex-1 max-w-[92%] md:max-w-[82%]' : 'max-w-[75%]'}`}>
         {/* Text bubble */}
         {msg.text && (
-          <div className="px-3 py-3 whitespace-pre-line"
+          <div className="px-3 py-3 whitespace-pre-line max-w-full"
             style={{
               ...bodyMedium,
               background: isUser ? '#386AF6' : '#ECECEC',
               color: isUser ? '#FFFFFF' : '#0E0E0E',
               borderRadius: isUser ? userRadius : botRadius,
+              overflowWrap: 'anywhere',
+              wordBreak: 'break-word',
             }}>
             {msg.text}
           </div>
@@ -1099,29 +1101,29 @@ function MessageBubble({ msg, onChipClick, onAction, onCardClick }) {
         )}
         {/* Inline HTML card */}
         {msg.html && (
-          <div className="mt-1.5 bg-white border border-[#D5D8DF] px-4 py-3 text-[#0E0E0E]"
-            style={{ borderRadius: 12 }}
+          <div className="mt-1.5 bg-white border border-[#D5D8DF] px-3 sm:px-4 py-3 text-[#0E0E0E] w-full max-w-full overflow-hidden"
+            style={{ borderRadius: 12, minWidth: 0, boxSizing: 'border-box' }}
             dangerouslySetInnerHTML={{ __html: msg.html }} />
         )}
         {/* Action buttons */}
         {msg.actions?.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-2">
+          <div className="flex flex-wrap gap-2 mt-2 w-full max-w-full">
             {msg.actions.map((a, i) => (
               <button key={i}
                 onClick={() => onAction ? onAction(a) : onChipClick(a.trigger)}
-                className={`px-4 py-1.5 rounded-full border-[1.5px] text-[12px] font-semibold bg-white transition-colors active:text-white ${ACTION_COLORS[a.variant] || ACTION_COLORS.primary}`}
-                style={{ fontFamily: 'Montserrat, sans-serif', letterSpacing: '0.25px' }}
+                className={`px-4 py-1.5 rounded-full border-[1.5px] text-[12px] font-semibold bg-white transition-colors active:text-white whitespace-normal text-left max-w-full ${ACTION_COLORS[a.variant] || ACTION_COLORS.primary}`}
+                style={{ fontFamily: 'Montserrat, sans-serif', letterSpacing: '0.25px', overflowWrap: 'anywhere', wordBreak: 'break-word' }}
               >{a.label}</button>
             ))}
           </div>
         )}
         {/* Chip options */}
         {msg.opts?.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-2">
+          <div className="flex flex-wrap gap-2 mt-2 w-full max-w-full">
             {msg.opts.map((opt, i) => (
               <button key={i} onClick={() => onChipClick(opt)}
-                className="px-4 py-1.5 rounded-full border-[1.5px] border-[#386AF6] text-[12px] font-medium text-[#386AF6] bg-white hover:bg-[#EEF2FF] transition-colors"
-                style={{ fontFamily: 'Montserrat, sans-serif', letterSpacing: '0.25px' }}
+                className="px-4 py-1.5 rounded-full border-[1.5px] border-[#386AF6] text-[12px] font-medium text-[#386AF6] bg-white hover:bg-[#EEF2FF] transition-colors whitespace-normal text-left max-w-full"
+                style={{ fontFamily: 'Montserrat, sans-serif', letterSpacing: '0.25px', overflowWrap: 'anywhere', wordBreak: 'break-word' }}
               >{opt}</button>
             ))}
           </div>
@@ -1317,7 +1319,13 @@ function InputBar({ onSend, disabled, activeBot, onAttach, activeTool, onToolSel
   // Label/Medium typography per design system: 14px Medium, 20px line-height, +0.1 ls
   const labelMedium = { fontSize: 14, lineHeight: '20px', letterSpacing: '0.1px', fontFamily: 'Montserrat, sans-serif' }
   return (
-    <div className="px-4 pb-4 pt-2 flex-shrink-0" style={{ background: '#ECECEC' }}>
+    <div
+      className="px-3 sm:px-4 pt-2 flex-shrink-0"
+      style={{
+        background: '#ECECEC',
+        paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
+      }}
+    >
       {/* Active tool badge */}
       {activeTool && (
         <div className="flex items-center gap-2 mb-2 px-1">
@@ -2502,7 +2510,7 @@ export default function SuperHomePage() {
 
           {/* Message list */}
           <div className="flex-1 flex flex-col min-w-0 overflow-hidden" style={{ background: '#FFFFFF' }}>
-            <div className="flex-1 overflow-y-auto px-4 pt-4" style={{ background: '#FFFFFF' }}>
+            <div className="flex-1 overflow-y-auto overflow-x-hidden px-3 sm:px-4 pt-4" style={{ background: '#FFFFFF', paddingBottom: 16 }}>
               {!hasMessages ? (
                 <WelcomeScreen botName={activeBot} onChip={handleSend} role={role} profile={userProfile} />
               ) : (
