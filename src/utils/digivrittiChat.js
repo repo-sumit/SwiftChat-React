@@ -17,6 +17,7 @@ import {
   STATE_BULK_QUEUES, STATE_MONSOON_SCENARIOS, STATE_AI_QUERIES,
 } from '../data/digivritti/stateFlows'
 import { SYSTEM_STATUS } from '../data/digivritti/systemStates'
+import { getApplications, statusBucket, SCHEMES } from '../data/digivritti/applications'
 
 // Local design tokens (mirror swiftchat-design-system.md semantic palette).
 const C = {
@@ -175,16 +176,78 @@ function welcome(role, profile) {
       ],
     }
   }
-  // Teacher (and parent/default) — chat-first.
+  // CRC · Cluster approver
+  if (role === 'crc') {
+    return {
+      text: `🌸 DigiVritti — CRC · Cluster Approver\n\nNamaste ${firstName}! Your cluster MADHAPAR has applications waiting for review.`,
+      actions: [
+        { label: '📋 Pending reviews',         trigger: 'dv:canvas:review',           variant: 'primary' },
+        { label: '🔄 Resubmitted to re-review', trigger: 'dv:canvas:review:resub',     variant: 'primary' },
+        { label: '✅ Rejected by me',          trigger: 'dv:a:decided',                variant: 'primary' },
+        { label: '📊 Approval summary',         trigger: 'dv:a:metrics',                variant: 'primary' },
+        { label: '✨ Ask DigiVritti AI',       trigger: 'dv:a:ai',                     variant: 'primary' },
+      ],
+    }
+  }
+
+  // PFMS · Payment officer
+  if (role === 'pfms') {
+    return {
+      text: `🌸 DigiVritti — PFMS · Payment Officer\n\nNamaste ${firstName}! Here's the payment workspace. You'll only see payment-related actions.`,
+      actions: [
+        { label: '🏦 Payment queue',          trigger: 'dv:canvas:payment-queue',         variant: 'primary' },
+        { label: '🔻 Failed payments',        trigger: 'dv:canvas:payment-queue:failed',  variant: 'err'     },
+        { label: '✅ UTR / Success records',  trigger: 'dv:canvas:payment-queue:success', variant: 'primary' },
+        { label: '📊 District success rate',  trigger: 'dv:s:districts',                  variant: 'primary' },
+        { label: '💰 Sanctioned vs disbursed', trigger: 'dv:s:metrics',                    variant: 'primary' },
+        { label: '✨ Ask Payment AI',          trigger: 'dv:s:ai',                         variant: 'primary' },
+      ],
+    }
+  }
+
+  // Teacher (and parent/default) — DigiVritti hub.
+  // Lists schemes (NL + NS) as parent module, with action buttons that route
+  // either further into chat or directly into the embedded canvas.
   return {
-    text: `🌸 Namaste ${firstName}! I'm DigiVritti — your scholarship assistant for Namo Lakshmi & Namo Saraswati. What would you like to do?`,
+    text: `🌸 Namaste ${firstName}! I'm DigiVritti — your scholarship assistant for Namo Lakshmi and Namo Saraswati. What would you like to do?`,
+    html: `<div style="font-family:${C.font};display:grid;grid-template-columns:1fr 1fr;gap:${C.s8}px;margin-top:${C.s8}px">
+      <div style="background:${C.surface};border:1px solid ${C.borderDefault};border-radius:${C.rLg}px;padding:${C.s12}px">
+        <div style="font-size:11px;font-weight:600;letter-spacing:0.2px;color:${C.brand};text-transform:uppercase;margin-bottom:4px">Scheme · NL</div>
+        <div style="font-size:14px;font-weight:600;color:${C.textPrimary};margin-bottom:2px">Namo Lakshmi</div>
+        <div style="font-size:11px;color:${C.textSecondary}">₹50,000 over 4 years · girls, Class 9–12</div>
+      </div>
+      <div style="background:${C.surface};border:1px solid ${C.borderDefault};border-radius:${C.rLg}px;padding:${C.s12}px">
+        <div style="font-size:11px;font-weight:600;letter-spacing:0.2px;color:${C.brand};text-transform:uppercase;margin-bottom:4px">Scheme · NS</div>
+        <div style="font-size:14px;font-weight:600;color:${C.textPrimary};margin-bottom:2px">Namo Saraswati</div>
+        <div style="font-size:11px;color:${C.textSecondary}">₹25,000 over 2 years · Science, Class 11–12</div>
+      </div>
+    </div>`,
     actions: [
-      { label: '👧 New — Namo Lakshmi',     trigger: 'dv:t:nl:start',   variant: 'primary' },
-      { label: '🧪 New — Namo Saraswati',   trigger: 'dv:t:ns:start',   variant: 'primary' },
-      { label: '💾 Continue Draft',          trigger: 'dv:t:draft',      variant: 'warn' },
-      { label: '🔁 Track Application',       trigger: 'dv:t:track',      variant: 'primary' },
-      { label: '🔄 Correct Rejected',        trigger: 'dv:t:correct',    variant: 'err' },
-      { label: '✨ Ask DigiVritti AI',       trigger: 'dv:t:ai',         variant: 'primary' },
+      { label: '👧 New — Namo Lakshmi',       trigger: 'dv:canvas:student-select:nl', variant: 'primary' },
+      { label: '🧪 New — Namo Saraswati',     trigger: 'dv:canvas:student-select:ns', variant: 'primary' },
+      { label: '💾 Continue Draft',            trigger: 'dv:t:draft',                  variant: 'warn'    },
+      { label: '🔁 Track Applications',        trigger: 'dv:canvas:list',              variant: 'primary' },
+      { label: '🔄 Correct Rejected',          trigger: 'dv:t:correct',                variant: 'err'     },
+      { label: '🚫 Opt Out Student',           trigger: 'dv:canvas:opt-out',           variant: 'warn'    },
+      { label: '📋 Application List',          trigger: 'dv:canvas:list',              variant: 'primary' },
+      { label: '✨ Ask DigiVritti AI',         trigger: 'dv:t:ai',                     variant: 'primary' },
+    ],
+  }
+}
+
+// Scheme-specific hub (entered from the existing Namo Laxmi tile etc.).
+function teacherSchemeHome(scheme, profile) {
+  const firstName = profile?.name?.split(' ')[0] || 'there'
+  const isNS = scheme === 'namo_saraswati'
+  return {
+    text: `🌸 ${isNS ? 'Namo Saraswati' : 'Namo Lakshmi'} — ${firstName}\n\n${isNS
+      ? '₹25,000 over 2 years for Class 11–12 Science girls. What would you like to do?'
+      : '₹50,000 over 4 years for Class 9–12 girls. What would you like to do?'}`,
+    actions: [
+      { label: `➕ New ${isNS ? 'NS' : 'NL'} application`, trigger: `dv:canvas:apply:${isNS ? 'ns' : 'nl'}`, variant: 'primary' },
+      { label: `📋 ${isNS ? 'NS' : 'NL'} application list`, trigger: `dv:canvas:list:${isNS ? 'ns' : 'nl'}`, variant: 'primary' },
+      { label: '🔄 Correct rejected',                       trigger: 'dv:t:correct',                        variant: 'err' },
+      { label: '🏠 DigiVritti home',                        trigger: 'dv:start',                            variant: 'primary' },
     ],
   }
 }
@@ -408,13 +471,41 @@ function teacherSimple(step) {
       ],
     }
   }
-  if (step === 'correct') return {
-    text: `⚠️ One application needs correction.\n\nStudent: Patel Kavya · Scheme: Namo Saraswati\nReason: Mother name mismatch between Aadhaar and bank.\n\nWould you like to fix and resubmit?`,
-    html: `<div style="font-family:${C.font}">${statusChip('REJECTED')}</div>`,
-    actions: [
-      { label: '✏️ Fix & resubmit', trigger: 'dv:t:correct_done', variant: 'primary' },
-      { label: '🏠 DigiVritti home', trigger: 'dv:start', variant: 'primary' },
-    ],
+  if (step === 'correct') {
+    // Pull every rejected / auto-rejected application so the teacher can pick
+    // which one to fix. List preview is summarised in the chat bubble; the
+    // canvas opens with the rejected filter pre-applied so each card already
+    // exposes an Edit Form button per student.
+    const rejected = getApplications({}).filter(a => statusBucket(a.status) === 'rejected')
+    const previewRows = rejected.slice(0, 6).map(a => `
+      <div style="display:flex;align-items:center;gap:${C.s8}px;padding:${C.s8}px ${C.s12}px;border:1px solid ${C.borderDefault};border-radius:${C.rMd}px;background:${C.surface};margin-bottom:6px">
+        <div style="width:28px;height:28px;border-radius:${C.rFull}px;background:${C.errorBg};color:${C.errorText};display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">⚠️</div>
+        <div style="flex:1;min-width:0;font-family:${C.font}">
+          <div style="font-size:13px;font-weight:600;color:${C.textPrimary}">${a.studentName}</div>
+          <div style="font-size:11px;color:${C.textSecondary}">${SCHEMES[a.schemeId]?.short || a.schemeId} · Class ${a.grade}-${a.section} · ${a.appId}</div>
+          ${a.rejectionReason ? `<div style="font-size:11px;color:${C.errorText};margin-top:2px">${a.rejectionReason}</div>` : ''}
+        </div>
+      </div>`).join('')
+    const more = rejected.length > 6
+      ? `<div style="font-size:11px;color:${C.textTertiary};margin-top:4px;font-family:${C.font}">+ ${rejected.length - 6} more in the canvas…</div>`
+      : ''
+    return {
+      text: `⚠️ ${rejected.length} application${rejected.length === 1 ? '' : 's'} need${rejected.length === 1 ? 's' : ''} correction. Pick the student you want to fix:`,
+      html: rejected.length === 0
+        ? `<div style="font-family:${C.font};color:${C.textSecondary};font-size:13px">Nothing to correct — your inbox is clear. 🎉</div>`
+        : `<div style="font-family:${C.font};margin-top:${C.s8}px">${previewRows}${more}</div>`,
+      openCanvas: rejected.length > 0
+        ? { type: 'digivritti', view: 'list', scheme: 'all', filter: 'rejected' }
+        : null,
+      actions: rejected.length > 0
+        ? [
+            { label: '📋 Open correction list', trigger: 'dv:canvas:list:rejected', variant: 'primary' },
+            { label: '🏠 DigiVritti home',      trigger: 'dv:start',                variant: 'primary' },
+          ]
+        : [
+            { label: '🏠 DigiVritti home', trigger: 'dv:start', variant: 'primary' },
+          ],
+    }
   }
   if (step === 'correct_done') return {
     text: `✓ Updated mother name to match bank.\nResubmission #2 sent for review.`,
@@ -756,35 +847,137 @@ function state(step) {
   return null
 }
 
+// ── Canvas directives ───────────────────────────────────────────────────────
+// `dv:canvas:<view>[:<arg>]` opens an embedded canvas inside SwiftChat.
+//   list[:nl|ns]      → application list, optional scheme filter
+//   apply:nl|ns       → new application form for selected scheme
+//   edit:<appId>      → fix-and-resubmit form pre-filled with the rejected app
+function canvasDirective(rest) {
+  // `rest` preserves original case (passed in from dispatchDigiVritti) so
+  // application IDs like NS2025GJ0011 reach the canvas un-mangled.
+  const parts = rest.split(':')
+  const view = (parts[0] || '').toLowerCase()
+  const arg  = parts.slice(1).join(':') || ''
+
+  if (view === 'list') {
+    const argLower = arg.toLowerCase()
+    // Status-bucket filter: list:rejected, list:pending, list:approved,
+    // list:resubmitted, list:draft. Otherwise treat the arg as a scheme code.
+    const STATUS_FILTERS = ['rejected', 'pending', 'approved', 'resubmitted', 'draft']
+    const filter = STATUS_FILTERS.includes(argLower) ? argLower : 'all'
+    const scheme = argLower === 'nl' ? 'namo_lakshmi'
+      : argLower === 'ns' ? 'namo_saraswati'
+      : 'all'
+    const filterLabel = filter !== 'all' ? ` · ${filter}` : ''
+    return {
+      text: `📋 Opening your DigiVritti application list${filterLabel}…`,
+      openCanvas: { type: 'digivritti', view: 'list', scheme, filter },
+    }
+  }
+  if (view === 'apply') {
+    const scheme = arg.toLowerCase() === 'ns' ? 'namo_saraswati' : 'namo_lakshmi'
+    return {
+      text: `📝 Opening the ${scheme === 'namo_saraswati' ? 'Namo Saraswati' : 'Namo Lakshmi'} application form…`,
+      openCanvas: { type: 'digivritti', view: 'apply', scheme },
+    }
+  }
+  if (view === 'edit') {
+    // Display ID in canonical upper-case but pass through unchanged for lookup.
+    return {
+      text: `✏️ Opening edit form for ${arg.toUpperCase()}…`,
+      openCanvas: { type: 'digivritti', view: 'edit', appId: arg },
+    }
+  }
+  if (view === 'student-select') {
+    const scheme = arg.toLowerCase() === 'ns' ? 'namo_saraswati' : 'namo_lakshmi'
+    const schemeShort = scheme === 'namo_saraswati' ? 'Namo Saraswati' : 'Namo Lakshmi'
+    return {
+      text: `Sure. I'll help you create a ${schemeShort} application. Please select a student.`,
+      openCanvas: { type: 'digivritti', view: 'student-select', scheme },
+    }
+  }
+  if (view === 'opt-out') {
+    return {
+      text: `Select the student who does not want to apply for the scholarship. You'll need a declaration PDF.`,
+      openCanvas: { type: 'digivritti', view: 'opt-out' },
+    }
+  }
+  if (view === 'review') {
+    if (arg && arg.match(/^[A-Z]{2}\d{4}/i)) {
+      return {
+        text: `🔍 Opening application ${arg.toUpperCase()} for review…`,
+        openCanvas: { type: 'digivritti', view: 'review', appId: arg, cluster: 'MADHAPAR' },
+      }
+    }
+    const filter = arg.toLowerCase() === 'resub' ? 'resubmitted' : null
+    return {
+      text: `📋 Opening your cluster review queue…`,
+      openCanvas: { type: 'digivritti', view: 'review', cluster: 'MADHAPAR', filter },
+    }
+  }
+  if (view === 'payment-queue') {
+    const filter = ['pending', 'failed', 'success', 'all'].includes(arg.toLowerCase()) ? arg.toLowerCase() : 'pending'
+    return {
+      text: `🏦 Opening payment queue (${filter})…`,
+      openCanvas: { type: 'digivritti', view: 'payment-queue', filter },
+    }
+  }
+  if (view === 'analytics') {
+    return {
+      text: `🧠 Opening DigiVritti analytics…`,
+      openCanvas: { type: 'digivritti', view: 'analytics', queryId: arg || 'backlog' },
+    }
+  }
+  return null
+}
+
 // ── Top-level dispatcher ────────────────────────────────────────────────────
 export function isDigiVrittiTrigger(text) {
   if (!text) return false
   const q = text.toLowerCase().trim()
   if (q.startsWith('dv:')) return true
-  return q === 'task: digivritti' || q === 'task:digivritti' || q === 'digivritti' || q === 'digi vritti' || q === 'scholarships'
+  if (q === 'task: digivritti' || q === 'task:digivritti' || q === 'digivritti' || q === 'digi vritti' || q === 'scholarships') return true
+  // Namo Laxmi (parent module: DigiVritti) — re-route via DigiVritti hub.
+  if (q === 'task: namo_laxmi' || q === 'task:namo_laxmi') return true
+  return false
 }
 
 export function dispatchDigiVritti(text, role, profile) {
-  const q = text.toLowerCase().trim()
+  const original = (text || '').trim()
+  const q = original.toLowerCase()
 
   // Entry — open DigiVritti based on role.
   if (q === 'task: digivritti' || q === 'task:digivritti' || q === 'digivritti' || q === 'digi vritti' || q === 'scholarships' || q === 'dv:start') {
     return welcome(role, profile)
   }
+  // Scheme home — used by the Namo Laxmi quick-action tile.
+  if (q === 'dv:nl:home' || q === 'task: namo_laxmi' || q === 'task:namo_laxmi') {
+    return teacherSchemeHome('namo_lakshmi', profile)
+  }
+  if (q === 'dv:ns:home') {
+    return teacherSchemeHome('namo_saraswati', profile)
+  }
   if (!q.startsWith('dv:')) return null
 
-  const parts = q.split(':') // e.g. "dv","t","nl","start"
-  const arena = parts[1] // t | a | d | s
-  const rest  = parts.slice(2).join(':') // remaining steps
+  // Use lowercase for the routing prefix, but preserve the original-case `rest`
+  // so downstream args (notably appIds like NS2025GJ0011) survive intact.
+  const lowerParts = q.split(':')
+  const origParts  = original.split(':')
+  const arena = lowerParts[1]
+  const rest  = origParts.slice(2).join(':')
+  const restLower = lowerParts.slice(2).join(':')
+
+  // Canvas directives — common to all teacher-style flows.
+  if (arena === 'canvas') return canvasDirective(rest)
 
   // Teacher
   if (arena === 't') {
-    if (rest.startsWith('nl:')) return teacherNL(rest.slice(3))
-    if (rest.startsWith('ns:')) return teacherNS(rest.slice(3))
-    return teacherSimple(rest)
+    if (restLower.startsWith('nl:')) return teacherNL(restLower.slice(3))
+    if (restLower.startsWith('ns:')) return teacherNS(restLower.slice(3))
+    return teacherSimple(restLower)
   }
-  if (arena === 'a') return approver(rest)
-  if (arena === 'd') return district(rest)
-  if (arena === 's') return state(rest)
+  if (arena === 'a') return approver(restLower)
+  if (arena === 'd') return district(restLower)
+  if (arena === 's') return state(restLower)
   return null
 }

@@ -8,6 +8,8 @@ export const ROLE_LABELS = {
   deo:             'DEO',
   state_secretary: 'State Secretary',
   parent:          'Parent',
+  crc:             'CRC · Cluster Approver',
+  pfms:            'PFMS · Payment Officer',
 }
 
 export const ROLE_SCOPES = {
@@ -16,6 +18,8 @@ export const ROLE_SCOPES = {
   deo:             'District',
   state_secretary: 'State',
   parent:          'Student',
+  crc:             'Cluster',
+  pfms:            'State (Payments)',
 }
 
 // Bot list per role
@@ -51,6 +55,16 @@ export const ROLE_BOTS = {
   parent: [
     'VSK 3.0',
     'Parent Assistant',
+  ],
+  crc: [
+    'VSK 3.0',
+    'DigiVritti Approver',
+    'Cluster Console',
+  ],
+  pfms: [
+    'VSK 3.0',
+    'DigiVritti Payments',
+    'PFMS Console',
   ],
 }
 
@@ -99,6 +113,20 @@ export const ROLE_SUGGESTIONS = {
     'Message to class teacher',
     'Download report card',
     'Upcoming school events',
+  ],
+  crc: [
+    'Pending applications in MADHAPAR',
+    'Resubmitted applications to re-review',
+    'Approval rate this month',
+    'Open DigiVritti scholarships',
+    'Show rejected with reasons',
+  ],
+  pfms: [
+    'Failed payments last month',
+    'Retry Aadhaar-bank failures',
+    'District payment success rate',
+    'Sanctioned vs disbursed',
+    'Open DigiVritti payments',
   ],
 }
 
@@ -171,6 +199,24 @@ export const ROLE_PERMISSIONS = {
     canViewDistrict: false,
     canViewState: false,
     canApproveScholarship: false,
+    canViewTeacherData: false,
+  },
+  crc: {
+    canMarkAttendance: false,
+    canViewAllStudents: false,    // cluster-scoped only
+    canCreateContent: false,
+    canViewDistrict: false,
+    canViewState: false,
+    canApproveScholarship: true,
+    canViewTeacherData: false,
+  },
+  pfms: {
+    canMarkAttendance: false,
+    canViewAllStudents: false,    // payment records only
+    canCreateContent: false,
+    canViewDistrict: true,        // payment-perspective drilldown
+    canViewState: true,
+    canApproveScholarship: false, // PFMS does not approve eligibility
     canViewTeacherData: false,
   },
 }

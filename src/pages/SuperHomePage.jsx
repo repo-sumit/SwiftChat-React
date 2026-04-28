@@ -34,6 +34,8 @@ const ROLE_META = {
   deo:             { name:'Mr. Amit Trivedi', org:'Ahmedabad District', badge:'DEO'             },
   state_secretary: { name:'Ms. Nidhi Shah',   org:'Gujarat Dept. Edu.', badge:'State Secretary' },
   parent:          { name:'Meena Patel',       org:'Parent Portal',      badge:'Parent'          },
+  crc:             { name:'Mr. Mehul Parmar', org:'Cluster MADHAPAR · Kachchh', badge:'CRC · Cluster Approver' },
+  pfms:            { name:'Ms. Farida Shaikh', org:'PFMS — Gujarat',     badge:'PFMS · Payment Officer' },
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -632,6 +634,24 @@ const QUICK_ACTIONS = {
     { icon: Award,         label: 'Scholar\nship',     bg: '#F3E5F5', fg: '#9333EA', trigger: 'Task: scholarship'        },
     { icon: MessageSquare, label: 'Message\nTeacher',  bg: '#E3F2FD', fg: '#1D4ED8', trigger: 'parent alert'             },
     { icon: FileText,      label: 'Download\nReport',  bg: '#E8F5E9', fg: '#059669', trigger: 'Task: report_card'        },
+  ],
+  // PFMS · Payment Officer — sees ONLY payment-side DigiVritti actions.
+  // No Mark Attendance / XAMTA / generic dashboards.
+  pfms: [
+    { icon: Award,         label: 'DigiVritti\nPayments',  bg: '#FCE4EC', fg: '#E91E63', trigger: 'Task: digivritti'                  },
+    { icon: BarChart3,     label: 'Payment\nQueue',        bg: '#EEF2FF', fg: '#4F46E5', trigger: 'dv:canvas:payment-queue'           },
+    { icon: AlertTriangle, label: 'Failed\nPayments',      bg: '#FEF2F2', fg: '#DC2626', trigger: 'dv:canvas:payment-queue:failed'    },
+    { icon: TrendingUp,    label: 'UTR\nSuccess',          bg: '#E8F5E9', fg: '#16A34A', trigger: 'dv:canvas:payment-queue:success'   },
+    { icon: Building2,     label: 'District\nSuccess Rate',bg: '#F0F4FF', fg: '#3730A3', trigger: 'dv:s:districts'                    },
+    { icon: FileText,      label: 'Sanctioned vs\nDisbursed',bg:'#FFF8E1',fg: '#D97706', trigger: 'dv:s:metrics'                      },
+  ],
+  // CRC · Cluster Approver — review-only DigiVritti actions.
+  crc: [
+    { icon: Award,         label: 'DigiVritti\nApprover',  bg: '#FCE4EC', fg: '#E91E63', trigger: 'Task: digivritti'                  },
+    { icon: AlertTriangle, label: 'Pending\nReviews',      bg: '#FFF8E1', fg: '#D97706', trigger: 'dv:canvas:review'                  },
+    { icon: TrendingUp,    label: 'Resubmitted\nQueue',    bg: '#EEF2FF', fg: '#4F46E5', trigger: 'dv:canvas:review:resub'             },
+    { icon: BarChart3,     label: 'Approval\nSummary',     bg: '#E8F5E9', fg: '#16A34A', trigger: 'dv:a:metrics'                      },
+    { icon: Brain,         label: 'Ask Approver\nAI',      bg: '#F3E5F5', fg: '#9333EA', trigger: 'dv:a:ai'                           },
   ],
 }
 
@@ -1399,7 +1419,7 @@ function ArtifactModal({ artifact, onClose }) {
 // MAIN COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
 export default function SuperHomePage() {
-  const { role, userProfile, signOut } = useApp()
+  const { role, userProfile, signOut, openCanvas } = useApp()
   const bots = ROLE_BOTS[role] || ROLE_BOTS.teacher || ['VSK 3.0']
   const [activeBot, setActiveBot]   = useState(bots[0])
   const [messages, setMessages]     = useState([])
@@ -1719,6 +1739,85 @@ export default function SuperHomePage() {
           actions: result.actions,
           progress: result.progress,
         })
+        // Open the embedded canvas if the dispatcher requested it.
+        // The canvas calls back via onComplete to sync results into chat.
+        if (result.openCanvas) {
+          const schemeName = (s) => s === 'namo_saraswati' ? 'Namo Saraswati' : 'Namo Lakshmi'
+          const homeAction = { label: '🏠 DigiVritti home', trigger: 'dv:start', variant: 'primary' }
+          const ctx = {
+            ...result.openCanvas,
+            role,
+            onComplete: (ev) => {
+              if (!ev) return
+              if (ev.kind === 'submit') {
+                addBot(
+                  `🎉 ${schemeName(ev.scheme)} application submitted for ${ev.studentName}.\nApp ID: ${ev.appId} · Status: APPROVER_PENDING · assigned to CRC: Mehul Parmar · MADHAPAR.`,
+                  [],
+                  { actions: [
+                    { label: '🔁 Track', trigger: 'dv:canvas:list', variant: 'primary' },
+                    homeAction,
+                  ] }
+                )
+              } else if (ev.kind === 'resubmit') {
+                addBot(
+                  `✓ ${ev.correction || 'Application updated.'}\nResubmission #2 sent for review · App ${ev.appId}.`,
+                  [],
+                  { actions: [
+                    { label: '📋 Application list', trigger: 'dv:canvas:list', variant: 'primary' },
+                    homeAction,
+                  ] }
+                )
+              } else if (ev.kind === 'approve') {
+                addBot(
+                  `✅ Application approved — ${ev.studentName} (${ev.appId}). Synced to IPMS for first-month payment.`,
+                  [],
+                  { actions: [
+                    { label: '📋 Back to queue', trigger: 'dv:canvas:review', variant: 'primary' },
+                    homeAction,
+                  ] }
+                )
+              } else if (ev.kind === 'reject') {
+                addBot(
+                  `❌ Application rejected — ${ev.studentName} (${ev.appId}). Reason: ${ev.reason}. Teacher has been notified to correct & resubmit.`,
+                  [],
+                  { actions: [
+                    { label: '📋 Back to queue', trigger: 'dv:canvas:review', variant: 'primary' },
+                    homeAction,
+                  ] }
+                )
+              } else if (ev.kind === 'optout') {
+                addBot(
+                  `📋 Application marked as NOT WANTED.\n\nStudent: ${ev.studentName}\nScheme: ${schemeName(ev.scheme)}\nDeclaration: ${ev.declarationFile?.name || 'declaration.pdf'}\n\nYou can edit later if the student changes their mind.`,
+                  [],
+                  { actions: [
+                    { label: '📋 Application list', trigger: 'dv:canvas:list', variant: 'primary' },
+                    homeAction,
+                  ] }
+                )
+              } else if (ev.kind === 'paymentSuccess') {
+                addBot(
+                  `✅ Payment successful. UTR recorded for ${ev.studentName}${ev.utr ? ` · ${ev.utr}` : ''}.`,
+                  [],
+                  { actions: [
+                    { label: '🏦 Payment queue', trigger: 'dv:canvas:payment-queue', variant: 'primary' },
+                    homeAction,
+                  ] }
+                )
+              } else if (ev.kind === 'paymentRetry') {
+                addBot(
+                  `🔄 Retry payment processed for ${ev.studentName}. UTR will be recorded once PFMS confirms.`,
+                  [],
+                  { actions: [
+                    { label: '🏦 Payment queue', trigger: 'dv:canvas:payment-queue', variant: 'primary' },
+                    homeAction,
+                  ] }
+                )
+              }
+            },
+          }
+          // Defer slightly so the chat message lands first.
+          setTimeout(() => openCanvas(ctx), 200)
+        }
       }
       return
     }
@@ -1947,7 +2046,7 @@ export default function SuperHomePage() {
     ]
     addBot(smartFallbacks[Math.floor(Math.random() * smartFallbacks.length)],
       fallbackOpts[role] || fallbackOpts.teacher)
-  }, [collectState, activeBot, bots, addBot, openArtifact, role, userProfile])
+  }, [collectState, activeBot, bots, addBot, openArtifact, role, userProfile, openCanvas])
 
   // ── Design Tool handler (Canva / Adobe) ──────────────────────────────────
   const handleDesignTool = useCallback((text, tool) => {

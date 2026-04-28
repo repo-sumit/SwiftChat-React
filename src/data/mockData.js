@@ -22,6 +22,8 @@ export const DEMO_SSO_USERS = [
   { stateId: 'PRI2001', password: 'Demo@123', name: 'Rakesh Joshi',  role: 'principal',       badge: 'Principal',       org: 'GPS Mehsana',        school: 'GPS Mehsana', district: 'Mehsana',   initials: 'RJ', color: '#7C3AED', emoji: '🏫' },
   { stateId: 'DEO3001', password: 'Demo@123', name: 'Amit Trivedi',  role: 'deo',             badge: 'DEO',             org: 'Ahmedabad District', school: null,          district: 'Ahmedabad', initials: 'AT', color: '#059669', emoji: '📊' },
   { stateId: 'SEC4001', password: 'Demo@123', name: 'Nidhi Shah',    role: 'state_secretary', badge: 'State Secretary', org: 'State — Gujarat',    school: null,          district: null,        initials: 'NS', color: '#DC2626', emoji: '🏛️' },
+  { stateId: 'CRC1001', password: 'Demo@123', name: 'Mehul Parmar',  role: 'crc',             badge: 'CRC · Cluster Approver', org: 'Cluster MADHAPAR · Kachchh', school: null,    district: 'Kachchh',   initials: 'MP', color: '#0EA5E9', emoji: '✅', cluster: 'MADHAPAR', approverCode: 'APR001' },
+  { stateId: 'PFMS001', password: 'Demo@123', name: 'Farida Shaikh', role: 'pfms',            badge: 'PFMS · Payment Officer', org: 'PFMS — Gujarat',           school: null,    district: null,        initials: 'FS', color: '#F97316', emoji: '💰' },
 ]
 
 export const DEMO_PHONE_USER = {
@@ -247,5 +249,22 @@ export const USER_PROFILES = {
     dpdpaTier: 'Tier 1 — Citizen', sessionTTL: '4 hrs', lastLogin: '08/04/2026, 10:05 AM',
     tokenOrigin: 'Phone OTP', initials: 'MP', color: '#F59E0B',
     childName: 'Ravi Patel', childGrade: 'Class 8',
+  },
+  crc: {
+    name: 'Mehul Parmar', stateId: 'CRC1001', role: 'crc', badge: 'CRC · Cluster Approver',
+    org: 'Cluster MADHAPAR · Kachchh', school: null,
+    district: 'Kachchh', scope: 'Cluster — MADHAPAR', employeeId: 'EMP-GJ-CRC-001',
+    phone: '9876545001', email: 'mehul.parmar@deo.gujarat.gov.in',
+    dpdpaTier: 'Tier 2 — Staff', sessionTTL: '8 hrs', lastLogin: '08/04/2026, 9:42 AM',
+    tokenOrigin: 'Gujarat SSO (OIDC)', initials: 'MP', color: '#0EA5E9',
+    cluster: 'MADHAPAR', approverCode: 'APR001',
+  },
+  pfms: {
+    name: 'Farida Shaikh', stateId: 'PFMS001', role: 'pfms', badge: 'PFMS · Payment Officer',
+    org: 'PFMS — Gujarat', school: null,
+    district: null, scope: 'State — Gujarat (Payments)', employeeId: 'EMP-GJ-PFMS-001',
+    phone: '9876546001', email: 'farida.shaikh@pfms.nic.in',
+    dpdpaTier: 'Tier 3 — Official', sessionTTL: '12 hrs', lastLogin: '08/04/2026, 8:12 AM',
+    tokenOrigin: 'PFMS SSO (SAML)', initials: 'FS', color: '#F97316',
   },
 }
