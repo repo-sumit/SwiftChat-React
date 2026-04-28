@@ -126,5 +126,5 @@ app.post('/message', async (req, res) => {
 })
 
 app.listen(PORT, () => {
-  console.log(`SwiftChat AI listening on :${PORT}`)
+  console.log(`SwiftChat AI server running on ${PORT}`)
 })

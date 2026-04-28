@@ -22,10 +22,3 @@ yarn-error.log*
 
 # vercel
 .vercel/
-
-
-
-swiftchat-design-system.md
-demo.jsx
-server/swiftchat-ai/.env.example
-server/swiftchat-ai/rag/schema.sql
