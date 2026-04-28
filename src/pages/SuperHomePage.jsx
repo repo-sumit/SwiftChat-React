@@ -1198,7 +1198,11 @@ function WelcomeScreen({ botName, onChip, role, profile }) {
   const captionSmall   = { fontSize: 10, fontWeight: 400, lineHeight: '14px', letterSpacing: '0.2px', fontFamily: 'Montserrat, sans-serif' }
 
   return (
-    <div className="flex-1 flex flex-col items-center px-4 md:px-8 py-8 overflow-y-auto" style={{ background: '#ECECEC' }}>
+    // Inherit the scrolling chat area's white surface (#FFFFFF) so the
+    // welcome state looks identical to the threaded chat state. Previously
+    // this was hard-set to #ECECEC, which is why the "no messages" landing
+    // looked grey in production while the chat thread was white.
+    <div className="flex-1 flex flex-col items-center px-4 md:px-8 py-8 overflow-y-auto" style={{ background: '#FFFFFF' }}>
 
       {/* Personalized hero */}
       <div className="w-full max-w-[704px] mb-8 mt-2">
