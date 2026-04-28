@@ -24,8 +24,10 @@ import { ROLE_BOTS, ROLE_SUGGESTIONS } from '../roles/roleConfig'
 import { dispatchDigiVritti, isDigiVrittiTrigger } from '../utils/digivrittiChat'
 import { groupByRecency, detectTool, TOOL_TITLES } from '../utils/chatHistory'
 import { routeIntentSync, routeIntent } from '../nlp/globalIntentRouter'
+import { routeDataQuery } from '../nlp/dataQueryRouter'
 import { isRemoteEnabled } from '../nlp/groqInterpreter'
 import { aiAnswerCardHtml } from '../nlp/aiAnswerCard'
+import { aiAnalyticsCardHtml } from '../nlp/aiAnalyticsCard'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS
@@ -2692,6 +2694,31 @@ export default function SuperHomePage() {
         pendingAction: pendingNlp.current,
       })
       if (dispatchNlpResult(nlpSync)) return
+
+      // ── Layer 1.5: data / analytics queries answered from frontend mock
+      // data. Sits between local action routing and the remote LLM so
+      // common questions like "mere class me kitne bache hai?" resolve
+      // instantly without a backend roundtrip.
+      if (nlpSync.kind === 'unknown' && !text.toLowerCase().startsWith('task:') && !text.toLowerCase().startsWith('dv:')) {
+        const analytics = routeDataQuery({ text, role })
+        if (analytics) {
+          pendingNlp.current = null
+          addBot(analytics.assistantText || '', [], {
+            html: aiAnalyticsCardHtml({
+              assistantText: analytics.assistantText,
+              table: analytics.table,
+              insight: analytics.insight,
+              language: analytics.language,
+            }),
+            actions: (analytics.chips || []).map(c => ({
+              label: c.label,
+              trigger: c.trigger || c.label,
+              variant: 'primary',
+            })),
+          })
+          return
+        }
+      }
 
       // ── Layer 2: remote LLM (Groq). Only fire if local came back unknown
       // and a backend URL is configured. Failure paths (no env var, network
