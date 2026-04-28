@@ -15,6 +15,7 @@ import {
 import { ROLE_BOTS, ROLE_SUGGESTIONS } from '../roles/roleConfig'
 import { dispatchDigiVritti, isDigiVrittiTrigger } from '../utils/digivrittiChat'
 import { groupByRecency, detectTool, TOOL_TITLES } from '../utils/chatHistory'
+import { routeIntentSync } from '../nlp/globalIntentRouter'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS
@@ -1498,6 +1499,8 @@ export default function SuperHomePage() {
   // changing and the hydrate effect resetting `messages`.
   const hydratedFor = useRef(null)
   const persistTimer = useRef(null)
+  // NLP layer — pending clarify/confirm step that survives across messages.
+  const pendingNlp = useRef(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -1826,7 +1829,10 @@ export default function SuperHomePage() {
 
   const openArtifact = useCallback((af) => setArtifact(af), [])
 
-  const handleSend = useCallback((text) => {
+  const handleSend = useCallback((text, opts = {}) => {
+    // `silent` suppresses the user-bubble push — used by the NLP re-entry so
+    // we don't echo the synthetic "Task: …" / "dv:…" trigger to the user.
+    const { silent = false } = opts
     // ── Lazy chat creation — if the user fires off an action before any
     // chat exists, spin one up so messages have somewhere to persist.
     // We mark hydratedFor so the persist effect knows it can write straight
@@ -1844,7 +1850,7 @@ export default function SuperHomePage() {
     // `dv:*` triggers don't leak into the user bubble area.
     if (isDigiVrittiTrigger(text)) {
       const isInternal = text.toLowerCase().trim().startsWith('dv:')
-      if (!isInternal) {
+      if (!isInternal && !silent) {
         setMessages(prev => [...prev, { id: Date.now(), role:'user', text, opts:[] }])
       }
       const result = dispatchDigiVritti(text, role, userProfile)
@@ -1942,7 +1948,9 @@ export default function SuperHomePage() {
       return
     }
 
-    setMessages(prev => [...prev, { id: Date.now(), role:'user', text, opts:[] }])
+    if (!silent) {
+      setMessages(prev => [...prev, { id: Date.now(), role:'user', text, opts:[] }])
+    }
 
     // ── Mid-collection flow ──────────────────────────────────────────────
     if (collectState) {
@@ -2170,6 +2178,69 @@ export default function SuperHomePage() {
       addBot(`📖 Here are the pending assignments:\n\n• **Math Ex. 7.3** (Q1-5) — Due tomorrow\n• **Science diagram** — Photosynthesis — Due Friday\n• **Gujarati essay** — My School — Due next week\n\nWould you like to create a new assignment?`,
         ['Create assignment','View submissions','Send reminder to parents'])
       return
+    }
+
+    // ── Global NLP layer — last comprehension pass before fallback ──────
+    // Catches multilingual / Hinglish phrasings that the keyword-block above
+    // missed, plus resumes any pending clarify/confirm step. Existing exact
+    // matches (TASK_FLOWS triggers, dv:* directives, greetings, etc.) win
+    // first because this block sits AFTER them.
+    {
+      const nlp = routeIntentSync({
+        text,
+        role,
+        pendingAction: pendingNlp.current,
+      })
+
+      if (nlp.kind === 'execute') {
+        pendingNlp.current = null
+        const d = nlp.directive || {}
+        if (d.trigger) {
+          // Re-enter handleSend with the existing trigger string so the
+          // existing canvas / chat handlers do the actual work. silent:true
+          // keeps the synthetic trigger out of the user-bubble area. Defer
+          // one tick so React commits the user message first.
+          setTimeout(() => handleSend(d.trigger, { silent: true }), 0)
+        } else if (d.canvas) {
+          openCanvas({ ...d.canvas, role })
+        } else if (d.reply) {
+          addBot(d.reply.text || '', d.reply.chips || [], {
+            html: d.reply.html,
+            actions: d.reply.actions,
+          })
+        }
+        return
+      }
+
+      if (nlp.kind === 'clarify') {
+        pendingNlp.current = nlp.pendingAction
+        addBot(nlp.prompt, nlp.chips || [])
+        return
+      }
+
+      if (nlp.kind === 'confirm') {
+        pendingNlp.current = nlp.pendingAction
+        addBot(nlp.prompt, [], {
+          actions: (nlp.chips || []).map(label => ({
+            label, trigger: label,
+            variant: label.startsWith('✅') ? 'ok' : 'err',
+          })),
+        })
+        return
+      }
+
+      if (nlp.kind === 'denied') {
+        pendingNlp.current = null
+        addBot(nlp.reason || 'Not allowed.')
+        return
+      }
+
+      if (nlp.kind === 'module-fallback') {
+        pendingNlp.current = null
+        addBot(nlp.module.fallbackPrompt, [])
+        return
+      }
+      // kind === 'unknown' → fall through to smart fallback below.
     }
 
     // ── Anything else — smart fallback ──────────────────────────────────
