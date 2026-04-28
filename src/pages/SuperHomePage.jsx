@@ -36,17 +36,36 @@ const ROLE_META = {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// DESIGN SYSTEM TOKENS — used across all artifact / inline HTML
+// ─────────────────────────────────────────────────────────────────────────────
+const DS = {
+  // Colors — semantic
+  brand: '#386AF6', brandHover: '#1339A3', brandSubtle: '#EEF2FF', brandSubtleStrong: '#C3D2FC', brandTextSubdued: '#345CCC',
+  textPrimary: '#0E0E0E', textSecondary: '#7383A5', textTertiary: '#828996', textInverse: '#FFFFFF',
+  borderDefault: '#D5D8DF', borderSubtle: '#ECECEC', borderStrong: '#999999',
+  surfaceDefault: '#FFFFFF', surface: '#ECECEC', surfaceRaised: '#FFFFFF',
+  success: '#00BA34', successSubtle: '#CCEFBF', successText: '#007B22', successBannerBg: '#D4F5DC',
+  warning: '#F8B200', warningSubtle: '#FDE1AC', warningText: '#9A6500', warningBannerBg: '#FFF3CC',
+  error:   '#EB5757', errorSubtle: '#FDEAEA',   errorText:   '#C0392B',
+  info:    '#84A2F4', infoSubtle: '#C3D2FC',     infoText:    '#345CCC', infoBannerBg: '#E0E7FF',
+  // Typography
+  font: 'Montserrat, sans-serif',
+  // Radii
+  radiusXs: 2, radiusSm: 4, radiusMd: 8, radiusLg: 12, radiusXl: 16, radius2xl: 20, radiusFull: 999,
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // ARTIFACT BUILDERS  (return { title, icon, html })
 // ─────────────────────────────────────────────────────────────────────────────
 function pill(val, hi=85, mid=70) {
-  const c = val>=hi ? '#dcfce7:#166534' : val>=mid ? '#fef9c3:#854d0e' : '#fee2e2:#991b1b'
+  const c = val>=hi ? `${DS.successSubtle}:${DS.successText}` : val>=mid ? `${DS.warningSubtle}:${DS.warningText}` : `${DS.errorSubtle}:${DS.errorText}`
   const [bg, fg] = c.split(':')
-  return `<span style="background:${bg};color:${fg};padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600">${val}%</span>`
+  return `<span style="background:${bg};color:${fg};padding:2px 10px;border-radius:${DS.radiusFull}px;font-size:11px;font-weight:500;letter-spacing:0.2px;font-family:${DS.font}">${val}%</span>`
 }
 function levelPill(lvl) {
-  const map = { Advanced:'#dbeafe:#1d4ed8', Proficient:'#dbeafe:#1d4ed8', Basic:'#fff7ed:#c2410c', 'Below Basic':'#fee2e2:#991b1b' }
-  const [bg,fg] = (map[lvl]||'#f3f4f6:#374151').split(':')
-  return `<span style="background:${bg};color:${fg};padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600">${lvl}</span>`
+  const map = { Advanced:`${DS.infoSubtle}:${DS.infoText}`, Proficient:`${DS.infoSubtle}:${DS.infoText}`, Basic:`${DS.warningSubtle}:${DS.warningText}`, 'Below Basic':`${DS.errorSubtle}:${DS.errorText}` }
+  const [bg,fg] = (map[lvl]||`${DS.borderSubtle}:${DS.textPrimary}`).split(':')
+  return `<span style="background:${bg};color:${fg};padding:2px 10px;border-radius:${DS.radiusFull}px;font-size:11px;font-weight:500;letter-spacing:0.2px;font-family:${DS.font}">${lvl}</span>`
 }
 
 function buildAttendanceArtifact(ctx) {
@@ -56,26 +75,29 @@ function buildAttendanceArtifact(ctx) {
   const present = students.length - absent.length
   const rows = students.map((s,i) => {
     const isAbsent = ctx.absentIdx?.includes(i)
-    return `<div style="display:flex;align-items:center;padding:12px 0;border-bottom:1px solid #f0f0f0;gap:12px">
-      <div style="flex:1"><strong style="font-size:14px">${s.name}</strong> <span style="color:#999;font-size:12px">${s.id}</span></div>
-      <span style="background:${isAbsent?'#fee2e2':'#dcfce7'};color:${isAbsent?'#991b1b':'#166534'};padding:3px 14px;border-radius:20px;font-size:13px;font-weight:600">${isAbsent?'Absent':'Present'}</span>
+    return `<div style="display:flex;align-items:center;padding:12px 0;border-bottom:1px solid ${DS.borderSubtle};gap:8px">
+      <div style="flex:1;font-family:${DS.font}">
+        <span style="font-size:14px;font-weight:600;letter-spacing:-0.2px;color:${DS.textPrimary}">${s.name}</span>
+        <span style="color:${DS.textTertiary};font-size:12px;font-weight:400;letter-spacing:0.4px;margin-left:8px">${s.id}</span>
+      </div>
+      <span style="background:${isAbsent?DS.errorSubtle:DS.successSubtle};color:${isAbsent?DS.errorText:DS.successText};padding:4px 12px;border-radius:${DS.radiusFull}px;font-size:11px;font-weight:500;letter-spacing:0.2px;font-family:${DS.font}">${isAbsent?'Absent':'Present'}</span>
     </div>`
   }).join('')
   const html = `
-    <div style="font-family:Inter,sans-serif;padding:0 4px">
-      <h2 style="font-size:22px;font-weight:700;margin:0 0 4px">Attendance Register</h2>
-      <p style="color:#666;font-size:13px;margin:0 0 20px">${SCHOOL} - Grade ${grade} - ${TODAY}</p>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
-        <div style="border:1px solid #e5e7eb;border-radius:12px;padding:16px">
-          <div style="font-size:12px;color:#666;margin-bottom:4px">Present</div>
-          <div style="font-size:32px;font-weight:700;color:#16a34a">${present}</div>
+    <div style="font-family:${DS.font};padding:0 4px;color:${DS.textPrimary}">
+      <h2 style="font-size:24px;font-weight:600;line-height:32px;margin:0 0 4px">Attendance Register</h2>
+      <p style="color:${DS.textSecondary};font-size:12px;font-weight:400;letter-spacing:0.4px;margin:0 0 24px">${SCHOOL} · Grade ${grade} · ${TODAY}</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px">
+        <div style="border:1px solid ${DS.borderDefault};border-radius:${DS.radiusLg}px;padding:16px;background:${DS.surfaceRaised}">
+          <div style="font-size:11px;font-weight:500;letter-spacing:0.2px;color:${DS.textSecondary};margin-bottom:8px">Present</div>
+          <div style="font-size:24px;font-weight:600;line-height:32px;color:${DS.success}">${present}</div>
         </div>
-        <div style="border:1px solid #e5e7eb;border-radius:12px;padding:16px">
-          <div style="font-size:12px;color:#666;margin-bottom:4px">Absent</div>
-          <div style="font-size:32px;font-weight:700;color:#dc2626">${students.length-present}</div>
+        <div style="border:1px solid ${DS.borderDefault};border-radius:${DS.radiusLg}px;padding:16px;background:${DS.surfaceRaised}">
+          <div style="font-size:11px;font-weight:500;letter-spacing:0.2px;color:${DS.textSecondary};margin-bottom:8px">Absent</div>
+          <div style="font-size:24px;font-weight:600;line-height:32px;color:${DS.error}">${students.length-present}</div>
         </div>
       </div>
-      <div style="border:1px solid #e5e7eb;border-radius:12px;padding:16px">${rows}</div>
+      <div style="border:1px solid ${DS.borderDefault};border-radius:${DS.radiusLg}px;padding:16px;background:${DS.surfaceRaised}">${rows}</div>
     </div>`
   return { title:'Attendance', icon:'📅', html }
 }
@@ -83,19 +105,19 @@ function buildAttendanceArtifact(ctx) {
 function buildLessonPlanArtifact(ctx) {
   const { subject='Mathematics', grade='8', topic='Photosynthesis' } = ctx
   const sections = [
-    { color:'#f97316', title:'Learning Objectives', items:[
+    { color:DS.warning, title:'Learning Objectives', items:[
       `Understand the core concept of ${topic}`,
       'Identify and explain key elements with examples',
       'Apply the concept to solve practice problems',
       'Demonstrate understanding through group activity',
     ]},
-    { color:'#eab308', title:'Teaching Materials', items:[
+    { color:DS.brand, title:'Teaching Materials', items:[
       'Whiteboard and colored markers',
       'Chart paper with diagrams',
       'Practice worksheet (printed)',
       'G-SHALA digital content module',
     ]},
-    { color:'#22c55e', title:'Lesson Flow', items:[
+    { color:DS.success, title:'Lesson Flow', items:[
       `<strong>Introduction (7 min):</strong> Begin with a real-world question about ${topic}. Engage students with a hands-on warm-up activity.`,
       `<strong>Concept Explanation (12 min):</strong> Use visual aids and step-by-step board work. Reference chart paper for key points.`,
       `<strong>Guided Practice (12 min):</strong> Solve 3-4 problems as a class. Students practice similar problems individually.`,
@@ -104,24 +126,24 @@ function buildLessonPlanArtifact(ctx) {
     ]},
   ]
   const sectHtml = sections.map(s => `
-    <div style="margin-bottom:20px">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-        <div style="width:4px;height:20px;background:${s.color};border-radius:2px;flex-shrink:0"></div>
-        <h4 style="font-size:15px;font-weight:700;margin:0">${s.title}</h4>
+    <div style="margin-bottom:24px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <div style="width:4px;height:20px;background:${s.color};border-radius:${DS.radiusFull}px;flex-shrink:0"></div>
+        <h4 style="font-size:16px;font-weight:600;letter-spacing:0.1px;margin:0;color:${DS.textPrimary}">${s.title}</h4>
       </div>
-      <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px">
-        ${s.items.map(i=>`<li style="font-size:13px;color:#374151;line-height:1.5">${i}</li>`).join('')}
+      <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px">
+        ${s.items.map(i=>`<li style="font-size:14px;font-weight:400;line-height:20px;letter-spacing:0.25px;color:${DS.textPrimary}">${i}</li>`).join('')}
       </ul>
     </div>`).join('')
   const html = `
-    <div style="font-family:Inter,sans-serif;padding:0 4px">
+    <div style="font-family:${DS.font};padding:0 4px;color:${DS.textPrimary}">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
-        <span style="font-size:11px;font-weight:700;color:#9ca3af;letter-spacing:1px">LESSON PLAN</span>
-        <span style="background:#f3f4f6;color:#374151;font-size:11px;font-weight:700;padding:3px 10px;border-radius:6px">VSK 3.0</span>
+        <span style="font-size:11px;font-weight:500;letter-spacing:0.2px;color:${DS.textTertiary};text-transform:uppercase">LESSON PLAN</span>
+        <span style="background:${DS.brandSubtle};color:${DS.brand};font-size:11px;font-weight:500;letter-spacing:0.2px;padding:4px 10px;border-radius:${DS.radiusFull}px">VSK 3.0</span>
       </div>
-      <h1 style="font-size:22px;font-weight:700;margin:4px 0 4px">${topic}</h1>
-      <p style="color:#666;font-size:13px;margin:0 0 16px">Grade ${grade} - ${subject} - ${TODAY} - 45 min</p>
-      <div style="height:2px;background:#3d5afe;border-radius:1px;margin-bottom:20px"></div>
+      <h1 style="font-size:24px;font-weight:600;line-height:32px;margin:8px 0 4px">${topic}</h1>
+      <p style="color:${DS.textSecondary};font-size:12px;font-weight:400;letter-spacing:0.4px;margin:0 0 16px">Grade ${grade} · ${subject} · ${TODAY} · 45 min</p>
+      <div style="height:2px;background:${DS.brand};border-radius:${DS.radiusFull}px;margin-bottom:24px"></div>
       ${sectHtml}
     </div>`
   return { title:'Lesson Plan', icon:'📋', html }
@@ -131,47 +153,47 @@ function buildPerformanceArtifact(ctx) {
   const grade = ctx.grade === 'All' ? '5' : (ctx.grade || '5')
   const d = PERF_DATA[grade] || PERF_DATA[5]
   const subjects = [
-    { name:'Mathemat..', val:d.math, color:'#3d5afe' },
-    { name:'Science',    val:d.sci,  color:'#3d5afe' },
-    { name:'Gujarati',   val:d.guj,  color:'#3d5afe' },
+    { name:'Mathemat..', val:d.math, color:DS.brand },
+    { name:'Science',    val:d.sci,  color:DS.brand },
+    { name:'Gujarati',   val:d.guj,  color:DS.brand },
   ]
   const maxH = 100
   const chartBars = subjects.map(s => {
     const h = Math.round((s.val / 100) * maxH)
     return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
-      <span style="font-size:12px;font-weight:700;color:#374151">${s.val}%</span>
-      <div style="width:100%;height:${h}px;background:${s.color};border-radius:4px 4px 0 0"></div>
-      <span style="font-size:11px;color:#9ca3af;margin-top:4px">${s.name}</span>
+      <span style="font-size:14px;font-weight:600;letter-spacing:-0.2px;color:${DS.textPrimary};font-family:${DS.font}">${s.val}%</span>
+      <div style="width:100%;height:${h}px;background:${s.color};border-radius:${DS.radiusSm}px ${DS.radiusSm}px 0 0"></div>
+      <span style="font-size:11px;font-weight:500;letter-spacing:0.2px;color:${DS.textTertiary};margin-top:4px;font-family:${DS.font}">${s.name}</span>
     </div>`
   }).join('')
   const tableRows = d.students.map(s => `
-    <tr>
-      <td style="padding:10px 8px;font-size:13px;font-weight:500">${s.name}</td>
-      <td style="padding:10px 8px;font-size:13px;text-align:center">${s.m}%</td>
-      <td style="padding:10px 8px;font-size:13px;text-align:center">${s.s}%</td>
-      <td style="padding:10px 8px;font-size:13px;text-align:center">${s.g}%</td>
-      <td style="padding:10px 8px;text-align:center">${levelPill(s.lvl)}</td>
+    <tr style="border-top:1px solid ${DS.borderSubtle}">
+      <td style="padding:12px 8px;font-size:14px;font-weight:500;letter-spacing:0.1px;color:${DS.textPrimary};font-family:${DS.font}">${s.name}</td>
+      <td style="padding:12px 8px;font-size:14px;font-weight:400;letter-spacing:0.25px;text-align:center;color:${DS.textPrimary};font-family:${DS.font}">${s.m}%</td>
+      <td style="padding:12px 8px;font-size:14px;font-weight:400;letter-spacing:0.25px;text-align:center;color:${DS.textPrimary};font-family:${DS.font}">${s.s}%</td>
+      <td style="padding:12px 8px;font-size:14px;font-weight:400;letter-spacing:0.25px;text-align:center;color:${DS.textPrimary};font-family:${DS.font}">${s.g}%</td>
+      <td style="padding:12px 8px;text-align:center">${levelPill(s.lvl)}</td>
     </tr>`).join('')
   const html = `
-    <div style="font-family:Inter,sans-serif;padding:0 4px">
-      <h2 style="font-size:22px;font-weight:700;margin:0 0 4px">Class Performance</h2>
-      <p style="color:#666;font-size:13px;margin:0 0 20px">${SCHOOL} - Grade ${ctx.grade === 'All' ? '5 (Sample)' : grade}</p>
-      <div style="border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:16px">
-        <h4 style="font-size:14px;font-weight:700;margin:0 0 16px">Subject Averages</h4>
+    <div style="font-family:${DS.font};padding:0 4px;color:${DS.textPrimary}">
+      <h2 style="font-size:24px;font-weight:600;line-height:32px;margin:0 0 4px">Class Performance</h2>
+      <p style="color:${DS.textSecondary};font-size:12px;font-weight:400;letter-spacing:0.4px;margin:0 0 24px">${SCHOOL} · Grade ${ctx.grade === 'All' ? '5 (Sample)' : grade}</p>
+      <div style="border:1px solid ${DS.borderDefault};border-radius:${DS.radiusLg}px;padding:16px;margin-bottom:16px;background:${DS.surfaceRaised}">
+        <h4 style="font-size:14px;font-weight:600;letter-spacing:-0.2px;margin:0 0 16px;color:${DS.textPrimary}">Subject Averages</h4>
         <div style="display:flex;gap:16px;align-items:flex-end;height:${maxH + 30}px">
           ${chartBars}
         </div>
       </div>
-      <div style="border:1px solid #e5e7eb;border-radius:12px;padding:16px">
-        <h4 style="font-size:14px;font-weight:700;margin:0 0 12px">Student Details</h4>
+      <div style="border:1px solid ${DS.borderDefault};border-radius:${DS.radiusLg}px;padding:16px;background:${DS.surfaceRaised}">
+        <h4 style="font-size:14px;font-weight:600;letter-spacing:-0.2px;margin:0 0 12px;color:${DS.textPrimary}">Student Details</h4>
         <table style="width:100%;border-collapse:collapse">
           <thead>
-            <tr style="border-bottom:2px solid #f3f4f6">
-              <th style="text-align:left;padding:8px;font-size:11px;color:#9ca3af;font-weight:700;letter-spacing:0.5px">STUDENT</th>
-              <th style="padding:8px;font-size:11px;color:#9ca3af;font-weight:700">MATH</th>
-              <th style="padding:8px;font-size:11px;color:#9ca3af;font-weight:700">SCI</th>
-              <th style="padding:8px;font-size:11px;color:#9ca3af;font-weight:700">GUJ</th>
-              <th style="padding:8px;font-size:11px;color:#9ca3af;font-weight:700">LEVEL</th>
+            <tr>
+              <th style="text-align:left;padding:8px;font-size:11px;font-weight:500;color:${DS.textTertiary};letter-spacing:0.2px;text-transform:uppercase;font-family:${DS.font}">Student</th>
+              <th style="padding:8px;font-size:11px;font-weight:500;color:${DS.textTertiary};letter-spacing:0.2px;text-transform:uppercase;font-family:${DS.font}">Math</th>
+              <th style="padding:8px;font-size:11px;font-weight:500;color:${DS.textTertiary};letter-spacing:0.2px;text-transform:uppercase;font-family:${DS.font}">Sci</th>
+              <th style="padding:8px;font-size:11px;font-weight:500;color:${DS.textTertiary};letter-spacing:0.2px;text-transform:uppercase;font-family:${DS.font}">Guj</th>
+              <th style="padding:8px;font-size:11px;font-weight:500;color:${DS.textTertiary};letter-spacing:0.2px;text-transform:uppercase;font-family:${DS.font}">Level</th>
             </tr>
           </thead>
           <tbody>${tableRows}</tbody>
@@ -186,33 +208,33 @@ function buildReportCardArtifact(ctx) {
   const d = PERF_DATA[grade] || PERF_DATA[8]
   const s = d.students[0]
   const html = `
-    <div style="font-family:Inter,sans-serif;padding:0 4px">
-      <div style="background:linear-gradient(135deg,#3d5afe,#1a237e);color:white;padding:20px;border-radius:12px;margin-bottom:16px">
-        <div style="font-size:11px;font-weight:700;letter-spacing:1px;opacity:0.7">REPORT CARD · VSK 3.0</div>
-        <div style="font-size:22px;font-weight:700;margin-top:4px">${student}</div>
-        <div style="font-size:13px;opacity:0.8">Grade ${grade} · ${SCHOOL}</div>
-        <div style="font-size:12px;opacity:0.6;margin-top:4px">Academic Year 2025–26</div>
+    <div style="font-family:${DS.font};padding:0 4px;color:${DS.textPrimary}">
+      <div style="background:linear-gradient(135deg,${DS.brand},${DS.brandHover});color:${DS.textInverse};padding:24px;border-radius:${DS.radiusLg}px;margin-bottom:16px">
+        <div style="font-size:11px;font-weight:500;letter-spacing:0.2px;opacity:0.85;text-transform:uppercase">Report Card · VSK 3.0</div>
+        <div style="font-size:24px;font-weight:600;line-height:32px;margin-top:4px">${student}</div>
+        <div style="font-size:14px;font-weight:400;letter-spacing:0.25px;opacity:0.85">Grade ${grade} · ${SCHOOL}</div>
+        <div style="font-size:12px;font-weight:400;letter-spacing:0.4px;opacity:0.75;margin-top:4px">Academic Year 2025–26</div>
       </div>
-      <div style="border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:12px">
-        <h4 style="font-size:14px;font-weight:700;margin:0 0 12px">Subject Performance</h4>
+      <div style="border:1px solid ${DS.borderDefault};border-radius:${DS.radiusLg}px;padding:16px;margin-bottom:12px;background:${DS.surfaceRaised}">
+        <h4 style="font-size:14px;font-weight:600;letter-spacing:-0.2px;margin:0 0 12px;color:${DS.textPrimary}">Subject Performance</h4>
         ${['Mathematics','Science','Gujarati','Social Science','English'].map((sub,i)=>{
           const score = [s?.m||78,s?.s||74,s?.g||70,72,68][i]
           const grade_ = score>=85?'A+':score>=75?'A':score>=60?'B+':score>=50?'B':'C'
-          return `<div style="display:flex;align-items:center;padding:8px 0;border-bottom:1px solid #f9fafb">
-            <span style="flex:1;font-size:13px">${sub}</span>
-            <span style="font-size:13px;font-weight:600;width:40px;text-align:right">${score}</span>
-            <span style="margin-left:12px;width:28px;text-align:center;font-weight:700;font-size:13px;color:#3d5afe">${grade_}</span>
+          return `<div style="display:flex;align-items:center;padding:12px 0;border-bottom:1px solid ${DS.borderSubtle}">
+            <span style="flex:1;font-size:14px;font-weight:400;letter-spacing:0.25px;color:${DS.textPrimary}">${sub}</span>
+            <span style="font-size:14px;font-weight:600;width:40px;text-align:right;letter-spacing:-0.2px;color:${DS.textPrimary}">${score}</span>
+            <span style="margin-left:12px;width:32px;text-align:center;font-weight:700;font-size:16px;color:${DS.brand}">${grade_}</span>
           </div>`
         }).join('')}
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div style="border:1px solid #e5e7eb;border-radius:10px;padding:12px;text-align:center">
-          <div style="font-size:11px;color:#9ca3af">Overall %</div>
-          <div style="font-size:24px;font-weight:700;color:#3d5afe">${Math.round(((s?.m||78)+(s?.s||74)+(s?.g||70)+72+68)/5)}%</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div style="border:1px solid ${DS.borderDefault};border-radius:${DS.radiusLg}px;padding:16px;text-align:center;background:${DS.surfaceRaised}">
+          <div style="font-size:11px;font-weight:500;letter-spacing:0.2px;color:${DS.textSecondary}">Overall %</div>
+          <div style="font-size:24px;font-weight:600;line-height:32px;color:${DS.brand};margin-top:4px">${Math.round(((s?.m||78)+(s?.s||74)+(s?.g||70)+72+68)/5)}%</div>
         </div>
-        <div style="border:1px solid #e5e7eb;border-radius:10px;padding:12px;text-align:center">
-          <div style="font-size:11px;color:#9ca3af">Grade</div>
-          <div style="font-size:24px;font-weight:700;color:#16a34a">A</div>
+        <div style="border:1px solid ${DS.borderDefault};border-radius:${DS.radiusLg}px;padding:16px;text-align:center;background:${DS.surfaceRaised}">
+          <div style="font-size:11px;font-weight:500;letter-spacing:0.2px;color:${DS.textSecondary}">Grade</div>
+          <div style="font-size:24px;font-weight:600;line-height:32px;color:${DS.success};margin-top:4px">A</div>
         </div>
       </div>
     </div>`
@@ -221,25 +243,25 @@ function buildReportCardArtifact(ctx) {
 
 function buildScholarshipArtifact() {
   const schemes = SCHOLARSHIP_DATA || [
-    { name:'Namo Laxmi Yojana', eligible:28, applied:24, approved:20, color:'#8b5cf6' },
-    { name:'DBT Scholarship',   eligible:35, applied:30, approved:28, color:'#3d5afe' },
-    { name:'EWS Admission',     eligible:12, applied:10, approved:9,  color:'#059669' },
+    { name:'Namo Laxmi Yojana', eligible:28, applied:24, approved:20 },
+    { name:'DBT Scholarship',   eligible:35, applied:30, approved:28 },
+    { name:'EWS Admission',     eligible:12, applied:10, approved:9 },
   ]
   const html = `
-    <div style="font-family:Inter,sans-serif;padding:0 4px">
-      <h2 style="font-size:22px;font-weight:700;margin:0 0 4px">Scholarship Status</h2>
-      <p style="color:#666;font-size:13px;margin:0 0 20px">${SCHOOL} · ${TODAY}</p>
+    <div style="font-family:${DS.font};padding:0 4px;color:${DS.textPrimary}">
+      <h2 style="font-size:24px;font-weight:600;line-height:32px;margin:0 0 4px">Scholarship Status</h2>
+      <p style="color:${DS.textSecondary};font-size:12px;font-weight:400;letter-spacing:0.4px;margin:0 0 24px">${SCHOOL} · ${TODAY}</p>
       ${schemes.map(s=>`
-        <div style="border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:12px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-            <h4 style="font-size:14px;font-weight:700;margin:0">${s.name}</h4>
+        <div style="border:1px solid ${DS.borderDefault};border-radius:${DS.radiusLg}px;padding:16px;margin-bottom:12px;background:${DS.surfaceRaised}">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+            <h4 style="font-size:16px;font-weight:600;letter-spacing:0.1px;margin:0;color:${DS.textPrimary}">${s.name}</h4>
             ${pill(Math.round(s.approved/s.eligible*100))}
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center">
-            ${[['Eligible',s.eligible,'#374151'],['Applied',s.applied,'#3d5afe'],['Approved',s.approved,'#16a34a']].map(([l,v,c])=>`
-              <div style="background:#f9fafb;border-radius:8px;padding:10px">
-                <div style="font-size:11px;color:#9ca3af">${l}</div>
-                <div style="font-size:20px;font-weight:700;color:${c}">${v}</div>
+            ${[['Eligible',s.eligible,DS.textPrimary],['Applied',s.applied,DS.brand],['Approved',s.approved,DS.success]].map(([l,v,c])=>`
+              <div style="background:${DS.surface};border-radius:${DS.radiusMd}px;padding:12px">
+                <div style="font-size:11px;font-weight:500;letter-spacing:0.2px;color:${DS.textSecondary}">${l}</div>
+                <div style="font-size:24px;font-weight:600;line-height:32px;color:${c};margin-top:4px">${v}</div>
               </div>`).join('')}
           </div>
         </div>`).join('')}
@@ -251,35 +273,35 @@ function buildAtRiskArtifact() {
   const students = AT_RISK_STUDENTS || []
   const high = students.filter(s => s.risk === 'high')
   const medium = students.filter(s => s.risk === 'medium')
-  const riskColor = r => r === 'high' ? '#dc2626' : '#d97706'
-  const riskBg = r => r === 'high' ? '#fee2e2' : '#fef3c7'
+  const riskColor = r => r === 'high' ? DS.errorText : DS.warningText
+  const riskBg = r => r === 'high' ? DS.errorSubtle : DS.warningSubtle
   const rows = students.map(s => `
-    <div style="display:flex;align-items:center;padding:12px;border:1px solid #f3f4f6;border-radius:10px;margin-bottom:8px;gap:12px">
+    <div style="display:flex;align-items:center;padding:12px;border:1px solid ${DS.borderSubtle};border-radius:${DS.radiusLg}px;margin-bottom:8px;gap:12px;background:${DS.surfaceRaised}">
       <div style="flex:1">
-        <div style="font-size:14px;font-weight:600;color:#111827">${s.name}</div>
-        <div style="font-size:12px;color:#6b7280;margin-top:2px">${s.reason || 'Low attendance'}</div>
+        <div style="font-size:14px;font-weight:600;letter-spacing:-0.2px;color:${DS.textPrimary}">${s.name}</div>
+        <div style="font-size:12px;font-weight:400;letter-spacing:0.4px;color:${DS.textSecondary};margin-top:2px">${s.reason || 'Low attendance'}</div>
       </div>
       <div style="text-align:right">
-        <div style="font-size:12px;color:#6b7280">Att: <strong>${s.attendance}%</strong></div>
-        <span style="background:${riskBg(s.risk)};color:${riskColor(s.risk)};font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px">${s.risk?.toUpperCase()}</span>
+        <div style="font-size:12px;font-weight:400;letter-spacing:0.4px;color:${DS.textSecondary}">Att: <strong style="color:${DS.textPrimary};font-weight:600">${s.attendance}%</strong></div>
+        <span style="background:${riskBg(s.risk)};color:${riskColor(s.risk)};font-size:11px;font-weight:500;letter-spacing:0.2px;padding:2px 10px;border-radius:${DS.radiusFull}px;display:inline-block;margin-top:4px">${s.risk?.toUpperCase()}</span>
       </div>
     </div>`).join('')
   const html = `
-    <div style="font-family:Inter,sans-serif;padding:0 4px">
-      <h2 style="font-size:22px;font-weight:700;margin:0 0 4px">At-Risk Students</h2>
-      <p style="color:#666;font-size:13px;margin:0 0 16px">${SCHOOL} · ${TODAY}</p>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
-        <div style="border:1px solid #fee2e2;border-radius:12px;padding:14px;background:#fff5f5">
-          <div style="font-size:11px;color:#dc2626;font-weight:700;margin-bottom:4px">HIGH RISK</div>
-          <div style="font-size:28px;font-weight:700;color:#dc2626">${high.length}</div>
+    <div style="font-family:${DS.font};padding:0 4px;color:${DS.textPrimary}">
+      <h2 style="font-size:24px;font-weight:600;line-height:32px;margin:0 0 4px">At-Risk Students</h2>
+      <p style="color:${DS.textSecondary};font-size:12px;font-weight:400;letter-spacing:0.4px;margin:0 0 24px">${SCHOOL} · ${TODAY}</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <div style="border:1px solid ${DS.errorSubtle};border-radius:${DS.radiusLg}px;padding:16px;background:${DS.errorSubtle}">
+          <div style="font-size:11px;font-weight:500;letter-spacing:0.2px;color:${DS.errorText};margin-bottom:8px;text-transform:uppercase">High Risk</div>
+          <div style="font-size:24px;font-weight:600;line-height:32px;color:${DS.errorText}">${high.length}</div>
         </div>
-        <div style="border:1px solid #fde68a;border-radius:12px;padding:14px;background:#fffbeb">
-          <div style="font-size:11px;color:#d97706;font-weight:700;margin-bottom:4px">MEDIUM RISK</div>
-          <div style="font-size:28px;font-weight:700;color:#d97706">${medium.length}</div>
+        <div style="border:1px solid ${DS.warningSubtle};border-radius:${DS.radiusLg}px;padding:16px;background:${DS.warningSubtle}">
+          <div style="font-size:11px;font-weight:500;letter-spacing:0.2px;color:${DS.warningText};margin-bottom:8px;text-transform:uppercase">Medium Risk</div>
+          <div style="font-size:24px;font-weight:600;line-height:32px;color:${DS.warningText}">${medium.length}</div>
         </div>
       </div>
       <div>${rows}</div>
-      <button style="width:100%;margin-top:8px;padding:12px;background:#3d5afe;color:white;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer">
+      <button style="width:100%;margin-top:12px;padding:16px;background:${DS.brand};color:${DS.textInverse};border:none;border-radius:${DS.radiusFull}px;font-size:16px;font-weight:600;letter-spacing:0.1px;cursor:pointer;font-family:${DS.font}">
         📨 Send Parent Alerts for All High Risk
       </button>
     </div>`
@@ -288,28 +310,28 @@ function buildAtRiskArtifact() {
 
 function buildNamoLaxmiArtifact() {
   const apps = NAMO_LAXMI_APPS || []
-  const statusColor = s => ({ approved:'#16a34a', pending:'#d97706', rejected:'#dc2626' })[s] || '#374151'
-  const statusBg = s => ({ approved:'#dcfce7', pending:'#fef3c7', rejected:'#fee2e2' })[s] || '#f3f4f6'
+  const statusColor = s => ({ approved:DS.successText, pending:DS.warningText, rejected:DS.errorText })[s] || DS.textPrimary
+  const statusBg = s => ({ approved:DS.successSubtle, pending:DS.warningSubtle, rejected:DS.errorSubtle })[s] || DS.borderSubtle
   const rows = apps.map(a => `
-    <div style="display:flex;align-items:center;padding:12px;border:1px solid #f3f4f6;border-radius:10px;margin-bottom:8px;gap:10px">
+    <div style="display:flex;align-items:center;padding:12px;border:1px solid ${DS.borderSubtle};border-radius:${DS.radiusLg}px;margin-bottom:8px;gap:10px;background:${DS.surfaceRaised}">
       <div style="flex:1">
-        <div style="font-size:14px;font-weight:600">${a.name}</div>
-        <div style="font-size:11px;color:#9ca3af">App ID: ${a.appId}</div>
-        ${a.reason ? `<div style="font-size:11px;color:#ef4444;margin-top:2px">${a.reason}</div>` : ''}
+        <div style="font-size:14px;font-weight:600;letter-spacing:-0.2px;color:${DS.textPrimary}">${a.name}</div>
+        <div style="font-size:11px;font-weight:500;letter-spacing:0.2px;color:${DS.textTertiary};margin-top:2px">App ID: ${a.appId}</div>
+        ${a.reason ? `<div style="font-size:11px;font-weight:500;letter-spacing:0.2px;color:${DS.errorText};margin-top:4px">${a.reason}</div>` : ''}
       </div>
-      <span style="background:${statusBg(a.status)};color:${statusColor(a.status)};font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;text-transform:capitalize">${a.status}</span>
+      <span style="background:${statusBg(a.status)};color:${statusColor(a.status)};font-size:11px;font-weight:500;letter-spacing:0.2px;padding:2px 10px;border-radius:${DS.radiusFull}px;text-transform:capitalize">${a.status}</span>
     </div>`).join('')
   const approved = apps.filter(a=>a.status==='approved').length
   const pending = apps.filter(a=>a.status==='pending').length
   const html = `
-    <div style="font-family:Inter,sans-serif;padding:0 4px">
-      <h2 style="font-size:22px;font-weight:700;margin:0 0 4px">Namo Laxmi Yojana</h2>
-      <p style="color:#666;font-size:13px;margin:0 0 16px">${SCHOOL} · ${TODAY}</p>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">
-        ${[['Total',apps.length,'#374151'],['Approved',approved,'#16a34a'],['Pending',pending,'#d97706']].map(([l,v,c])=>`
-          <div style="border:1px solid #e5e7eb;border-radius:10px;padding:12px;text-align:center">
-            <div style="font-size:11px;color:#9ca3af">${l}</div>
-            <div style="font-size:22px;font-weight:700;color:${c}">${v}</div>
+    <div style="font-family:${DS.font};padding:0 4px;color:${DS.textPrimary}">
+      <h2 style="font-size:24px;font-weight:600;line-height:32px;margin:0 0 4px">Namo Laxmi Yojana</h2>
+      <p style="color:${DS.textSecondary};font-size:12px;font-weight:400;letter-spacing:0.4px;margin:0 0 24px">${SCHOOL} · ${TODAY}</p>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
+        ${[['Total',apps.length,DS.textPrimary],['Approved',approved,DS.success],['Pending',pending,DS.warning]].map(([l,v,c])=>`
+          <div style="border:1px solid ${DS.borderDefault};border-radius:${DS.radiusLg}px;padding:16px;text-align:center;background:${DS.surfaceRaised}">
+            <div style="font-size:11px;font-weight:500;letter-spacing:0.2px;color:${DS.textSecondary}">${l}</div>
+            <div style="font-size:24px;font-weight:600;line-height:32px;color:${c};margin-top:4px">${v}</div>
           </div>`).join('')}
       </div>
       <div>${rows}</div>
@@ -319,14 +341,15 @@ function buildNamoLaxmiArtifact() {
 
 function buildDashboardArtifact(ctx) {
   const scope = ctx.scope || 'school'
+  const purple = '#7C3AED' // accent for variety; not in core palette but acceptable
   let kpis, title, subtitle, trendData
   if (scope === 'state') {
     const s = STATE_SUMMARY || {}
     kpis = [
-      { label:'Total Schools',   val: s.totalSchools?.toLocaleString() || '33,248', color:'#3d5afe' },
-      { label:'Total Students',  val: (s.totalStudents ? (s.totalStudents/1000000).toFixed(1)+'M' : '8.2M'), color:'#7c3aed' },
-      { label:'Avg Attendance',  val: (s.avgAttendance||85.4)+'%', color:'#16a34a' },
-      { label:'Scholarship Rate',val: (s.scholarshipRate||79.2)+'%', color:'#f97316' },
+      { label:'Total Schools',   val: s.totalSchools?.toLocaleString() || '33,248', color:DS.brand },
+      { label:'Total Students',  val: (s.totalStudents ? (s.totalStudents/1000000).toFixed(1)+'M' : '8.2M'), color:purple },
+      { label:'Avg Attendance',  val: (s.avgAttendance||85.4)+'%', color:DS.success },
+      { label:'Scholarship Rate',val: (s.scholarshipRate||79.2)+'%', color:DS.warning },
     ]
     title = 'State Dashboard — Gujarat'
     subtitle = `Ministry of Education · ${TODAY}`
@@ -334,51 +357,51 @@ function buildDashboardArtifact(ctx) {
   } else if (scope === 'district') {
     const d = DISTRICTS?.[0] || {}
     kpis = [
-      { label:'Total Schools',  val: d.schools?.toString() || '412',   color:'#3d5afe' },
-      { label:'Total Students', val: d.students?.toLocaleString() || '24,831', color:'#7c3aed' },
-      { label:'Avg Attendance', val: (d.attendance||84.2)+'%', color:'#16a34a' },
-      { label:'Scheme Rate',    val: (d.scholarshipRate||78.6)+'%', color:'#f97316' },
+      { label:'Total Schools',  val: d.schools?.toString() || '412',   color:DS.brand },
+      { label:'Total Students', val: d.students?.toLocaleString() || '24,831', color:purple },
+      { label:'Avg Attendance', val: (d.attendance||84.2)+'%', color:DS.success },
+      { label:'Scheme Rate',    val: (d.scholarshipRate||78.6)+'%', color:DS.warning },
     ]
     title = 'District Dashboard — Ahmedabad'
     subtitle = `District Education Office · ${TODAY}`
     trendData = [80,83,82,85,84,86,87]
   } else {
     kpis = [
-      { label:'Total Students',   val:'342',   color:'#3d5afe' },
-      { label:'Today Attendance', val:'88.3%', color:'#16a34a' },
-      { label:'Avg Score',        val:'74.1%', color:'#f97316' },
-      { label:'Scheme Rate',      val:'82.5%', color:'#8b5cf6' },
+      { label:'Total Students',   val:'342',   color:DS.brand },
+      { label:'Today Attendance', val:'88.3%', color:DS.success },
+      { label:'Avg Score',        val:'74.1%', color:DS.warning },
+      { label:'Scheme Rate',      val:'82.5%', color:purple },
     ]
     title = 'School Dashboard'
     subtitle = `${SCHOOL} · ${TODAY}`
     trendData = [82,86,84,88,85,87,88]
   }
   const kpiHtml = kpis.map(k=>`
-    <div style="border:1px solid #e5e7eb;border-radius:12px;padding:16px">
-      <div style="font-size:11px;color:#9ca3af;margin-bottom:4px">${k.label}</div>
-      <div style="font-size:24px;font-weight:700;color:${k.color}">${k.val}</div>
+    <div style="border:1px solid ${DS.borderDefault};border-radius:${DS.radiusLg}px;padding:16px;background:${DS.surfaceRaised}">
+      <div style="font-size:11px;font-weight:500;letter-spacing:0.2px;color:${DS.textSecondary};margin-bottom:8px">${k.label}</div>
+      <div style="font-size:24px;font-weight:600;line-height:32px;color:${k.color}">${k.val}</div>
     </div>`).join('')
   const html = `
-    <div style="font-family:Inter,sans-serif;padding:0 4px">
-      <h2 style="font-size:22px;font-weight:700;margin:0 0 4px">${title}</h2>
-      <p style="color:#666;font-size:13px;margin:0 0 20px">${subtitle}</p>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">${kpiHtml}</div>
-      <div style="border:1px solid #e5e7eb;border-radius:12px;padding:16px">
-        <h4 style="font-size:14px;font-weight:700;margin:0 0 12px">Attendance Trend (Last 7 Days)</h4>
-        <div style="display:flex;gap:8px;align-items:flex-end;height:80px">
+    <div style="font-family:${DS.font};padding:0 4px;color:${DS.textPrimary}">
+      <h2 style="font-size:24px;font-weight:600;line-height:32px;margin:0 0 4px">${title}</h2>
+      <p style="color:${DS.textSecondary};font-size:12px;font-weight:400;letter-spacing:0.4px;margin:0 0 24px">${subtitle}</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">${kpiHtml}</div>
+      <div style="border:1px solid ${DS.borderDefault};border-radius:${DS.radiusLg}px;padding:16px;background:${DS.surfaceRaised}">
+        <h4 style="font-size:14px;font-weight:600;letter-spacing:-0.2px;margin:0 0 12px;color:${DS.textPrimary}">Attendance Trend (Last 7 Days)</h4>
+        <div style="display:flex;gap:8px;align-items:flex-end;height:96px">
           ${trendData.map((v,i)=>`
             <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
-              <div style="width:100%;height:${Math.round(v*0.8)}px;background:${i===6?'#3d5afe':'#bfdbfe'};border-radius:3px 3px 0 0"></div>
-              <span style="font-size:9px;color:#9ca3af">${['M','T','W','T','F','S','T'][i]}</span>
+              <div style="width:100%;height:${Math.round(v*0.8)}px;background:${i===6?DS.brand:DS.brandSubtleStrong};border-radius:${DS.radiusSm}px ${DS.radiusSm}px 0 0"></div>
+              <span style="font-size:10px;font-weight:400;letter-spacing:0.2px;color:${DS.textTertiary}">${['M','T','W','T','F','S','T'][i]}</span>
             </div>`).join('')}
         </div>
       </div>
       ${scope !== 'school' && DISTRICTS ? `
-      <div style="border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin-top:16px">
-        <h4 style="font-size:14px;font-weight:700;margin:0 0 12px">${scope==='state'?'Top Districts':'Schools Snapshot'}</h4>
+      <div style="border:1px solid ${DS.borderDefault};border-radius:${DS.radiusLg}px;padding:16px;margin-top:16px;background:${DS.surfaceRaised}">
+        <h4 style="font-size:14px;font-weight:600;letter-spacing:-0.2px;margin:0 0 12px;color:${DS.textPrimary}">${scope==='state'?'Top Districts':'Schools Snapshot'}</h4>
         ${(DISTRICTS||[]).slice(0,4).map(d=>`
-          <div style="display:flex;align-items:center;padding:8px 0;border-bottom:1px solid #f9fafb">
-            <span style="flex:1;font-size:13px;font-weight:500">${d.name}</span>
+          <div style="display:flex;align-items:center;padding:12px 0;border-bottom:1px solid ${DS.borderSubtle}">
+            <span style="flex:1;font-size:14px;font-weight:500;letter-spacing:0.1px;color:${DS.textPrimary}">${d.name}</span>
             ${pill(d.attendance)}
           </div>`).join('')}
       </div>` : ''}
@@ -390,28 +413,28 @@ function buildLearningOutcomesArtifact() {
   const lo = LEARNING_OUTCOMES || {}
   const subjects = Object.keys(lo)
   const html = `
-    <div style="font-family:Inter,sans-serif;padding:0 4px">
-      <h2 style="font-size:22px;font-weight:700;margin:0 0 4px">Learning Outcomes</h2>
-      <p style="color:#666;font-size:13px;margin:0 0 20px">${SCHOOL} · ${TODAY}</p>
+    <div style="font-family:${DS.font};padding:0 4px;color:${DS.textPrimary}">
+      <h2 style="font-size:24px;font-weight:600;line-height:32px;margin:0 0 4px">Learning Outcomes</h2>
+      <p style="color:${DS.textSecondary};font-size:12px;font-weight:400;letter-spacing:0.4px;margin:0 0 24px">${SCHOOL} · ${TODAY}</p>
       ${subjects.map(sub => `
-        <div style="margin-bottom:20px">
-          <h4 style="font-size:15px;font-weight:700;margin:0 0 10px;color:#1e3a5f">${sub}</h4>
-          <table style="width:100%;border-collapse:collapse;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">
+        <div style="margin-bottom:24px">
+          <h4 style="font-size:16px;font-weight:600;letter-spacing:0.1px;margin:0 0 12px;color:${DS.textPrimary}">${sub}</h4>
+          <table style="width:100%;border-collapse:collapse;border:1px solid ${DS.borderDefault};border-radius:${DS.radiusLg}px;overflow:hidden;background:${DS.surfaceRaised}">
             <thead>
-              <tr style="background:#f8fafc">
-                <th style="text-align:left;padding:8px 10px;font-size:11px;color:#9ca3af;font-weight:700">OUTCOME</th>
-                <th style="padding:8px;font-size:11px;color:#9ca3af;font-weight:700;text-align:center">GR 3</th>
-                <th style="padding:8px;font-size:11px;color:#9ca3af;font-weight:700;text-align:center">GR 5</th>
-                <th style="padding:8px;font-size:11px;color:#9ca3af;font-weight:700;text-align:center">GR 8</th>
+              <tr style="background:${DS.surface}">
+                <th style="text-align:left;padding:12px;font-size:11px;font-weight:500;letter-spacing:0.2px;color:${DS.textTertiary};text-transform:uppercase">Outcome</th>
+                <th style="padding:12px 8px;font-size:11px;font-weight:500;letter-spacing:0.2px;color:${DS.textTertiary};text-transform:uppercase;text-align:center">Gr 3</th>
+                <th style="padding:12px 8px;font-size:11px;font-weight:500;letter-spacing:0.2px;color:${DS.textTertiary};text-transform:uppercase;text-align:center">Gr 5</th>
+                <th style="padding:12px 8px;font-size:11px;font-weight:500;letter-spacing:0.2px;color:${DS.textTertiary};text-transform:uppercase;text-align:center">Gr 8</th>
               </tr>
             </thead>
             <tbody>
               ${(lo[sub]||[]).map(item=>`
-                <tr style="border-top:1px solid #f3f4f6">
-                  <td style="padding:9px 10px;font-size:12px;color:#374151">${item.outcome}</td>
-                  <td style="padding:9px;text-align:center">${pill(item.grade3||0)}</td>
-                  <td style="padding:9px;text-align:center">${pill(item.grade5||0)}</td>
-                  <td style="padding:9px;text-align:center">${pill(item.grade8||0)}</td>
+                <tr style="border-top:1px solid ${DS.borderSubtle}">
+                  <td style="padding:12px;font-size:12px;font-weight:400;letter-spacing:0.4px;color:${DS.textPrimary}">${item.outcome}</td>
+                  <td style="padding:12px 8px;text-align:center">${pill(item.grade3||0)}</td>
+                  <td style="padding:12px 8px;text-align:center">${pill(item.grade5||0)}</td>
+                  <td style="padding:12px 8px;text-align:center">${pill(item.grade8||0)}</td>
                 </tr>`).join('')}
             </tbody>
           </table>
@@ -426,22 +449,22 @@ function buildLearningOutcomesArtifact() {
 function buildInlineAttendanceHtml(grade) {
   const students = STUDENTS[grade] || STUDENTS[8]
   return `
-    <div style="margin-top:6px">
-      <div style="font-size:12px;color:#666;margin-bottom:8px">
-        <strong>${SCHOOL}</strong> — Grade ${grade} — ${TODAY}<br>
+    <div style="margin-top:8px;font-family:${DS.font}">
+      <div style="font-size:12px;font-weight:400;letter-spacing:0.4px;color:${DS.textSecondary};margin-bottom:12px">
+        <strong style="font-weight:600;color:${DS.textPrimary}">${SCHOOL}</strong> · Grade ${grade} · ${TODAY}<br>
         Tap a name to toggle Present / Absent
       </div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-bottom:10px" id="att-grid">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px" id="att-grid">
         ${students.map(s => {
           const short = s.name.split(' ').map(w => w[0] + w.slice(1,5)).join(' ')
           return `<div onclick="window._vskToggle(this)" data-n="${short}" data-status="present"
-            style="padding:8px 4px;border-radius:8px;text-align:center;font-size:10px;font-weight:700;cursor:pointer;border:1px solid #C8E6C9;background:#E8F5E9;color:#2E7D32;user-select:none;transition:all .12s"
+            style="padding:8px 4px;border-radius:${DS.radiusFull}px;text-align:center;font-size:11px;font-weight:500;letter-spacing:0.2px;cursor:pointer;border:1.5px solid ${DS.success};background:${DS.successSubtle};color:${DS.successText};user-select:none;transition:all .12s;font-family:${DS.font}"
           >✓ ${short}</div>`
         }).join('')}
       </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;font-size:11px;color:#666;margin-bottom:6px">
-        <span>Total: <strong>${students.length}</strong></span>
-        <span id="att-summary">Present: <strong style="color:#2E7D32">${students.length}</strong> · Absent: <strong style="color:#E53935">0</strong></span>
+      <div style="display:flex;align-items:center;justify-content:space-between;font-size:11px;font-weight:500;letter-spacing:0.2px;color:${DS.textSecondary};margin-bottom:8px">
+        <span>Total: <strong style="color:${DS.textPrimary};font-weight:600">${students.length}</strong></span>
+        <span id="att-summary">Present: <strong style="color:${DS.successText};font-weight:600">${students.length}</strong> · Absent: <strong style="color:${DS.errorText};font-weight:600">0</strong></span>
       </div>
     </div>`
 }
@@ -449,39 +472,42 @@ function buildInlineAttendanceHtml(grade) {
 function buildInlineAtRiskHtml() {
   const students = AT_RISK_STUDENTS || []
   const rows = students.map(s => {
-    const riskColor = s.risk === 'high' ? '#E53935' : '#FF8F00'
-    const riskBg = s.risk === 'high' ? '#FFEBEE' : '#FFF8E1'
-    return `<div style="display:flex;align-items:center;padding:8px 10px;border-bottom:1px solid #f3f4f6;gap:8px">
-      <div style="flex:1;font-size:12px"><strong>${s.name}</strong><br><span style="color:#999;font-size:10px">${s.reason||'Low attendance'}</span></div>
-      <span style="font-size:11px;color:#666">Att: <strong>${s.attendance}%</strong></span>
-      <span style="background:${riskBg};color:${riskColor};font-size:9px;font-weight:700;padding:2px 7px;border-radius:12px">${(s.risk||'').toUpperCase()}</span>
+    const riskColor = s.risk === 'high' ? DS.errorText : DS.warningText
+    const riskBg = s.risk === 'high' ? DS.errorSubtle : DS.warningSubtle
+    return `<div style="display:flex;align-items:center;padding:12px;border-bottom:1px solid ${DS.borderSubtle};gap:8px">
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:600;letter-spacing:-0.2px;color:${DS.textPrimary}">${s.name}</div>
+        <div style="color:${DS.textTertiary};font-size:11px;font-weight:500;letter-spacing:0.2px;margin-top:2px">${s.reason||'Low attendance'}</div>
+      </div>
+      <span style="font-size:11px;font-weight:500;letter-spacing:0.2px;color:${DS.textSecondary}">Att: <strong style="color:${DS.textPrimary};font-weight:600">${s.attendance}%</strong></span>
+      <span style="background:${riskBg};color:${riskColor};font-size:10px;font-weight:500;letter-spacing:0.2px;padding:2px 8px;border-radius:${DS.radiusFull}px">${(s.risk||'').toUpperCase()}</span>
     </div>`
   }).join('')
   const high = students.filter(s=>s.risk==='high').length
   return `
-    <div style="margin-top:6px">
-      <div style="font-size:12px;color:#666;margin-bottom:6px"><strong>⚠️ ${students.length} students at risk</strong> (${high} high risk)</div>
-      <div style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">${rows}</div>
+    <div style="margin-top:8px;font-family:${DS.font}">
+      <div style="font-size:12px;font-weight:400;letter-spacing:0.4px;color:${DS.textSecondary};margin-bottom:8px"><strong style="color:${DS.textPrimary};font-weight:600">⚠️ ${students.length} students at risk</strong> (${high} high risk)</div>
+      <div style="border:1px solid ${DS.borderDefault};border-radius:${DS.radiusLg}px;overflow:hidden;background:${DS.surfaceRaised}">${rows}</div>
     </div>`
 }
 
 function buildInlineScholarshipHtml() {
   const schemes = SCHOLARSHIP_DATA || []
   return `
-    <div style="margin-top:6px">
+    <div style="margin-top:8px;font-family:${DS.font}">
       ${schemes.map(s => {
         const pct = Math.round(s.approved / s.eligible * 100)
-        const barColor = pct >= 80 ? '#4CAF50' : pct >= 60 ? '#FF9800' : '#E53935'
-        return `<div style="background:#E3F2FD;border:1px solid rgba(30,136,229,.2);border-radius:10px;padding:10px 12px;margin-bottom:6px">
-          <div style="font-size:11px;font-weight:700;color:#1E88E5;margin-bottom:6px">${s.name}</div>
-          <div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid rgba(30,136,229,.1)">
-            <span>Eligible</span><strong>${s.eligible}</strong>
+        const barColor = pct >= 80 ? DS.success : pct >= 60 ? DS.warning : DS.error
+        return `<div style="background:${DS.brandSubtle};border:1px solid ${DS.borderDefault};border-radius:${DS.radiusLg}px;padding:12px;margin-bottom:8px">
+          <div style="font-size:14px;font-weight:600;letter-spacing:0.1px;color:${DS.brandTextSubdued};margin-bottom:8px">${s.name}</div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:400;letter-spacing:0.4px;color:${DS.textPrimary};padding:4px 0;border-bottom:1px solid ${DS.borderSubtle}">
+            <span>Eligible</span><strong style="font-weight:600">${s.eligible}</strong>
           </div>
-          <div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid rgba(30,136,229,.1)">
-            <span>Applied</span><strong>${s.applied}</strong>
+          <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:400;letter-spacing:0.4px;color:${DS.textPrimary};padding:4px 0;border-bottom:1px solid ${DS.borderSubtle}">
+            <span>Applied</span><strong style="font-weight:600">${s.applied}</strong>
           </div>
-          <div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0">
-            <span>Approved</span><strong style="color:${barColor}">${s.approved} (${pct}%)</strong>
+          <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:400;letter-spacing:0.4px;color:${DS.textPrimary};padding:4px 0">
+            <span>Approved</span><strong style="color:${barColor};font-weight:600">${s.approved} (${pct}%)</strong>
           </div>
         </div>`
       }).join('')}
@@ -491,63 +517,63 @@ function buildInlineScholarshipHtml() {
 function buildInlineNamoLaxmiHtml() {
   const apps = NAMO_LAXMI_APPS || []
   const statusIcon = s => ({ approved:'✅', pending:'⏳', rejected:'❌' })[s] || '❓'
-  const statusColor = s => ({ approved:'#16a34a', pending:'#d97706', rejected:'#dc2626' })[s] || '#666'
-  const statusBg = s => ({ approved:'#dcfce7', pending:'#fef3c7', rejected:'#fee2e2' })[s] || '#f3f4f6'
+  const statusColor = s => ({ approved:DS.successText, pending:DS.warningText, rejected:DS.errorText })[s] || DS.textSecondary
+  const statusBg = s => ({ approved:DS.successSubtle, pending:DS.warningSubtle, rejected:DS.errorSubtle })[s] || DS.borderSubtle
   const docIcon = ok => ok ? '✅' : '❌'
   const approved = apps.filter(a=>a.status==='approved').length
   const pending = apps.filter(a=>a.status==='pending').length
   const rejected = apps.filter(a=>a.status==='rejected').length
 
   const cards = apps.map((a, idx) => `
-    <div style="border:1px solid #e5e7eb;border-radius:12px;margin-bottom:8px;overflow:hidden">
-      <div style="display:flex;align-items:center;padding:10px 12px;gap:8px;cursor:pointer" onclick="window._vskToggleNL?.(${idx})">
-        <div style="width:32px;height:32px;border-radius:50%;background:${statusBg(a.status)};display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">${statusIcon(a.status)}</div>
+    <div style="border:1px solid ${DS.borderDefault};border-radius:${DS.radiusLg}px;margin-bottom:8px;overflow:hidden;background:${DS.surfaceRaised}">
+      <div style="display:flex;align-items:center;padding:12px;gap:8px;cursor:pointer" onclick="window._vskToggleNL?.(${idx})">
+        <div style="width:32px;height:32px;border-radius:${DS.radiusFull}px;background:${statusBg(a.status)};display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">${statusIcon(a.status)}</div>
         <div style="flex:1;min-width:0">
-          <div style="font-size:13px;font-weight:700;color:#1a1f36">${a.studentName}</div>
-          <div style="font-size:10px;color:#666">Grade ${a.grade}-${a.section} · ${a.appId}</div>
+          <div style="font-size:14px;font-weight:600;letter-spacing:-0.2px;color:${DS.textPrimary}">${a.studentName}</div>
+          <div style="font-size:11px;font-weight:500;letter-spacing:0.2px;color:${DS.textTertiary}">Grade ${a.grade}-${a.section} · ${a.appId}</div>
         </div>
-        <span style="background:${statusBg(a.status)};color:${statusColor(a.status)};font-size:10px;font-weight:700;padding:2px 8px;border-radius:12px;text-transform:capitalize">${a.status}</span>
-        <span style="font-size:12px;color:#999" id="nl-arrow-${idx}">▼</span>
+        <span style="background:${statusBg(a.status)};color:${statusColor(a.status)};font-size:10px;font-weight:500;letter-spacing:0.2px;padding:2px 8px;border-radius:${DS.radiusFull}px;text-transform:capitalize">${a.status}</span>
+        <span style="font-size:12px;color:${DS.textTertiary}" id="nl-arrow-${idx}">▼</span>
       </div>
-      <div id="nl-detail-${idx}" style="display:none;padding:0 12px 12px;border-top:1px solid #f0f0f0">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;font-size:11px;margin-top:8px">
-          <div><span style="color:#999">Father:</span> <strong>${a.fatherName}</strong></div>
-          <div><span style="color:#999">Mother:</span> <strong>${a.motherName}</strong></div>
-          <div><span style="color:#999">DOB:</span> ${a.dob}</div>
-          <div><span style="color:#999">Phone:</span> ${a.phone}</div>
-          <div><span style="color:#999">Student Aadhaar:</span> ${a.studentAadhaar}</div>
-          <div><span style="color:#999">Mother Aadhaar:</span> ${a.motherAadhaar}</div>
-          <div><span style="color:#999">Bank A/C:</span> ${a.bankAcc}</div>
-          <div><span style="color:#999">IFSC:</span> ${a.ifsc}</div>
+      <div id="nl-detail-${idx}" style="display:none;padding:0 12px 12px;border-top:1px solid ${DS.borderSubtle}">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;font-size:11px;font-weight:500;letter-spacing:0.2px;margin-top:12px;color:${DS.textPrimary}">
+          <div><span style="color:${DS.textTertiary}">Father:</span> <strong style="font-weight:600">${a.fatherName}</strong></div>
+          <div><span style="color:${DS.textTertiary}">Mother:</span> <strong style="font-weight:600">${a.motherName}</strong></div>
+          <div><span style="color:${DS.textTertiary}">DOB:</span> ${a.dob}</div>
+          <div><span style="color:${DS.textTertiary}">Phone:</span> ${a.phone}</div>
+          <div><span style="color:${DS.textTertiary}">Student Aadhaar:</span> ${a.studentAadhaar}</div>
+          <div><span style="color:${DS.textTertiary}">Mother Aadhaar:</span> ${a.motherAadhaar}</div>
+          <div><span style="color:${DS.textTertiary}">Bank A/C:</span> ${a.bankAcc}</div>
+          <div><span style="color:${DS.textTertiary}">IFSC:</span> ${a.ifsc}</div>
         </div>
-        <div style="margin-top:8px;font-size:11px;font-weight:700;color:#374151">Documents:</div>
-        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;font-size:10px">
-          <span style="background:#f8fafc;padding:2px 6px;border-radius:6px">${docIcon(a.docs?.aadhaar)} Aadhaar</span>
-          <span style="background:#f8fafc;padding:2px 6px;border-radius:6px">${docIcon(a.docs?.pan)} PAN</span>
-          <span style="background:#f8fafc;padding:2px 6px;border-radius:6px">${docIcon(a.docs?.income)} Income Cert</span>
-          <span style="background:#f8fafc;padding:2px 6px;border-radius:6px">${docIcon(a.docs?.lc)} LC</span>
-          <span style="background:#f8fafc;padding:2px 6px;border-radius:6px">${docIcon(a.docs?.passbook)} Passbook</span>
+        <div style="margin-top:12px;font-size:11px;font-weight:500;letter-spacing:0.2px;color:${DS.textSecondary};text-transform:uppercase">Documents</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;font-size:10px;font-weight:400;letter-spacing:0.2px">
+          <span style="background:${DS.surface};padding:4px 8px;border-radius:${DS.radiusFull}px;color:${DS.textPrimary}">${docIcon(a.docs?.aadhaar)} Aadhaar</span>
+          <span style="background:${DS.surface};padding:4px 8px;border-radius:${DS.radiusFull}px;color:${DS.textPrimary}">${docIcon(a.docs?.pan)} PAN</span>
+          <span style="background:${DS.surface};padding:4px 8px;border-radius:${DS.radiusFull}px;color:${DS.textPrimary}">${docIcon(a.docs?.income)} Income Cert</span>
+          <span style="background:${DS.surface};padding:4px 8px;border-radius:${DS.radiusFull}px;color:${DS.textPrimary}">${docIcon(a.docs?.lc)} LC</span>
+          <span style="background:${DS.surface};padding:4px 8px;border-radius:${DS.radiusFull}px;color:${DS.textPrimary}">${docIcon(a.docs?.passbook)} Passbook</span>
         </div>
-        ${a.reason ? `<div style="margin-top:6px;font-size:10px;color:#dc2626;background:#fee2e2;padding:4px 8px;border-radius:6px">⚠️ ${a.reason}</div>` : ''}
+        ${a.reason ? `<div style="margin-top:8px;font-size:11px;font-weight:500;letter-spacing:0.2px;color:${DS.errorText};background:${DS.errorSubtle};padding:8px 12px;border-radius:${DS.radiusMd}px">⚠️ ${a.reason}</div>` : ''}
         ${a.status === 'rejected' || a.status === 'pending' ? `
-          <div style="display:flex;gap:6px;margin-top:8px">
-            <button onclick="window._vskNLAction?.('edit',${idx})" style="flex:1;padding:6px;border:1.5px solid #386AF6;color:#386AF6;background:#fff;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer">✏️ Edit Form</button>
-            <button onclick="window._vskNLAction?.('resubmit',${idx})" style="flex:1;padding:6px;border:1.5px solid #16a34a;color:#16a34a;background:#fff;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer">🔄 Re-submit</button>
+          <div style="display:flex;gap:8px;margin-top:12px">
+            <button onclick="window._vskNLAction?.('edit',${idx})" style="flex:1;padding:8px 12px;border:1.5px solid ${DS.brand};color:${DS.brand};background:${DS.surfaceDefault};border-radius:${DS.radiusFull}px;font-size:12px;font-weight:500;letter-spacing:0.25px;cursor:pointer;font-family:${DS.font}">✏️ Edit Form</button>
+            <button onclick="window._vskNLAction?.('resubmit',${idx})" style="flex:1;padding:8px 12px;border:1.5px solid ${DS.success};color:${DS.successText};background:${DS.surfaceDefault};border-radius:${DS.radiusFull}px;font-size:12px;font-weight:500;letter-spacing:0.25px;cursor:pointer;font-family:${DS.font}">🔄 Re-submit</button>
           </div>` : `
-          <div style="margin-top:8px">
-            <button onclick="window._vskNLAction?.('view',${idx})" style="width:100%;padding:6px;border:1.5px solid #386AF6;color:#386AF6;background:#fff;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer">👁️ View Full Form</button>
+          <div style="margin-top:12px">
+            <button onclick="window._vskNLAction?.('view',${idx})" style="width:100%;padding:8px 12px;border:1.5px solid ${DS.brand};color:${DS.brand};background:${DS.surfaceDefault};border-radius:${DS.radiusFull}px;font-size:12px;font-weight:500;letter-spacing:0.25px;cursor:pointer;font-family:${DS.font}">👁️ View Full Form</button>
           </div>`}
       </div>
     </div>`).join('')
 
   return `
-    <div style="margin-top:6px">
-      <div style="display:flex;gap:6px;margin-bottom:10px;font-size:11px;text-align:center">
-        <div style="flex:1;background:#dcfce7;border-radius:8px;padding:6px"><div style="font-size:16px;font-weight:700;color:#16a34a">${approved}</div>Approved</div>
-        <div style="flex:1;background:#fef3c7;border-radius:8px;padding:6px"><div style="font-size:16px;font-weight:700;color:#d97706">${pending}</div>Pending</div>
-        <div style="flex:1;background:#fee2e2;border-radius:8px;padding:6px"><div style="font-size:16px;font-weight:700;color:#dc2626">${rejected}</div>Rejected</div>
+    <div style="margin-top:8px;font-family:${DS.font}">
+      <div style="display:flex;gap:8px;margin-bottom:12px;font-size:11px;font-weight:500;letter-spacing:0.2px;text-align:center">
+        <div style="flex:1;background:${DS.successSubtle};border-radius:${DS.radiusMd}px;padding:8px;color:${DS.successText}"><div style="font-size:20px;font-weight:600;line-height:24px;margin-bottom:2px">${approved}</div>Approved</div>
+        <div style="flex:1;background:${DS.warningSubtle};border-radius:${DS.radiusMd}px;padding:8px;color:${DS.warningText}"><div style="font-size:20px;font-weight:600;line-height:24px;margin-bottom:2px">${pending}</div>Pending</div>
+        <div style="flex:1;background:${DS.errorSubtle};border-radius:${DS.radiusMd}px;padding:8px;color:${DS.errorText}"><div style="font-size:20px;font-weight:600;line-height:24px;margin-bottom:2px">${rejected}</div>Rejected</div>
       </div>
-      <div style="font-size:11px;color:#666;margin-bottom:6px">Tap a student to view details, edit, or re-submit</div>
+      <div style="font-size:11px;font-weight:400;letter-spacing:0.2px;color:${DS.textSecondary};margin-bottom:8px">Tap a student to view details, edit, or re-submit</div>
       ${cards}
     </div>`
 }
@@ -949,7 +975,7 @@ function WebviewModal({ card, onClose }) {
       ) : (
         <div
           className="flex-1 overflow-y-auto px-4 py-4"
-          style={{ fontFamily: 'Inter, sans-serif' }}
+          style={{ fontFamily: DS.font }}
           dangerouslySetInnerHTML={{ __html: card.fullHtml || card.html || '' }}
         />
       )}
@@ -1310,7 +1336,6 @@ function InputBar({ onSend, disabled, activeBot, onAttach, activeTool, onToolSel
           </button>
         </div>
       </div>
-      <p className="text-center mt-2" style={{ fontSize: 11, fontFamily: 'Montserrat, sans-serif', color: '#828996', letterSpacing: '0.2px', lineHeight: '14px' }}>VSK Gujarat can make mistakes. Please double-check responses.</p>
     </div>
   )
 }
@@ -1398,9 +1423,9 @@ export default function SuperHomePage() {
     window._vskToggle = (el) => {
       const isP = el.dataset.status === 'present'
       el.dataset.status = isP ? 'absent' : 'present'
-      el.style.background = isP ? '#FFEBEE' : '#E8F5E9'
-      el.style.borderColor = isP ? '#FFCDD2' : '#C8E6C9'
-      el.style.color = isP ? '#E53935' : '#2E7D32'
+      el.style.background = isP ? DS.errorSubtle : DS.successSubtle
+      el.style.borderColor = isP ? DS.error : DS.success
+      el.style.color = isP ? DS.errorText : DS.successText
       el.textContent = (isP ? '✗ ' : '✓ ') + el.dataset.n
       // Update summary
       const grid = el.closest('[id]')?.parentElement
@@ -1408,13 +1433,13 @@ export default function SuperHomePage() {
       const all = grid.querySelectorAll('[data-status]')
       const absent = [...all].filter(e => e.dataset.status === 'absent').length
       const summary = grid.querySelector('#att-summary')
-      if (summary) summary.innerHTML = `Present: <strong style="color:#2E7D32">${all.length - absent}</strong> · Absent: <strong style="color:#E53935">${absent}</strong>`
+      if (summary) summary.innerHTML = `Present: <strong style="color:${DS.successText};font-weight:600">${all.length - absent}</strong> · Absent: <strong style="color:${DS.errorText};font-weight:600">${absent}</strong>`
     }
     window._vskSubmit = (btn) => {
       btn.textContent = '✅ Submitted'
-      btn.style.background = '#4CAF50'
-      btn.style.borderColor = '#4CAF50'
-      btn.style.color = '#fff'
+      btn.style.background = DS.success
+      btn.style.borderColor = DS.success
+      btn.style.color = DS.textInverse
       btn.style.pointerEvents = 'none'
     }
     window._vskToggleNL = (idx) => {
@@ -1432,33 +1457,35 @@ export default function SuperHomePage() {
       if (!app) return
       if (action === 'resubmit') {
         const btn = event?.target
-        if (btn) { btn.textContent = '✅ Re-submitted'; btn.style.background = '#dcfce7'; btn.style.color = '#16a34a'; btn.style.borderColor = '#16a34a'; btn.style.pointerEvents = 'none' }
+        if (btn) { btn.textContent = '✅ Re-submitted'; btn.style.background = DS.successSubtle; btn.style.color = DS.successText; btn.style.borderColor = DS.success; btn.style.pointerEvents = 'none' }
       } else if (action === 'edit' || action === 'view') {
         // Show a toast-like alert with form details
+        const inputStyle = `width:100%;padding:8px 12px;border:1px solid ${DS.borderDefault};border-radius:${DS.radiusFull}px;margin-top:4px;font-size:14px;font-weight:500;letter-spacing:0.1px;font-family:${DS.font};color:${DS.textPrimary};background:${DS.surfaceDefault}`
+        const labelStyle = `font-size:11px;font-weight:500;letter-spacing:0.2px;color:${DS.textSecondary};text-transform:uppercase`
         const overlay = document.createElement('div')
         overlay.innerHTML = `<div style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px" onclick="this.remove()">
-          <div style="background:white;border-radius:16px;padding:20px;max-width:400px;width:100%;max-height:80vh;overflow-y:auto;font-family:Montserrat,sans-serif" onclick="event.stopPropagation()">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-              <h3 style="font-size:16px;font-weight:700;margin:0">${action === 'edit' ? '✏️ Edit' : '👁️ View'} — ${app.studentName}</h3>
-              <button onclick="this.closest('[style*=fixed]').remove()" style="border:none;background:none;font-size:18px;cursor:pointer">✕</button>
+          <div style="background:${DS.surfaceDefault};border-radius:${DS.radiusXl}px;padding:24px;max-width:440px;width:100%;max-height:80vh;overflow-y:auto;font-family:${DS.font};color:${DS.textPrimary}" onclick="event.stopPropagation()">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+              <h3 style="font-size:16px;font-weight:700;letter-spacing:0;margin:0;color:${DS.textPrimary}">${action === 'edit' ? '✏️ Edit' : '👁️ View'} — ${app.studentName}</h3>
+              <button onclick="this.closest('[style*=fixed]').remove()" style="border:none;background:none;font-size:18px;cursor:pointer;color:${DS.textTertiary};width:32px;height:32px;border-radius:${DS.radiusFull}px">✕</button>
             </div>
-            <div style="font-size:12px;display:flex;flex-direction:column;gap:8px">
-              <label style="font-weight:600">Student Name<input value="${app.studentName}" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:8px;margin-top:2px;font-size:12px" ${action==='view'?'disabled':''}></label>
-              <label style="font-weight:600">Father's Name<input value="${app.fatherName}" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:8px;margin-top:2px;font-size:12px" ${action==='view'?'disabled':''}></label>
-              <label style="font-weight:600">Mother's Name<input value="${app.motherName}" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:8px;margin-top:2px;font-size:12px" ${action==='view'?'disabled':''}></label>
-              <label style="font-weight:600">Student Aadhaar<input value="${app.studentAadhaar}" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:8px;margin-top:2px;font-size:12px" ${action==='view'?'disabled':''}></label>
-              <label style="font-weight:600">Mother Aadhaar<input value="${app.motherAadhaar}" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:8px;margin-top:2px;font-size:12px" ${action==='view'?'disabled':''}></label>
-              <label style="font-weight:600">Bank Account<input value="${app.bankAcc}" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:8px;margin-top:2px;font-size:12px" ${action==='view'?'disabled':''}></label>
-              <label style="font-weight:600">IFSC Code<input value="${app.ifsc}" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:8px;margin-top:2px;font-size:12px" ${action==='view'?'disabled':''}></label>
-              <div style="font-weight:600;margin-top:4px">Documents</div>
-              <div style="display:flex;flex-wrap:wrap;gap:4px">
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <label style="${labelStyle}">Student Name<input value="${app.studentName}" style="${inputStyle}" ${action==='view'?'disabled':''}></label>
+              <label style="${labelStyle}">Father's Name<input value="${app.fatherName}" style="${inputStyle}" ${action==='view'?'disabled':''}></label>
+              <label style="${labelStyle}">Mother's Name<input value="${app.motherName}" style="${inputStyle}" ${action==='view'?'disabled':''}></label>
+              <label style="${labelStyle}">Student Aadhaar<input value="${app.studentAadhaar}" style="${inputStyle}" ${action==='view'?'disabled':''}></label>
+              <label style="${labelStyle}">Mother Aadhaar<input value="${app.motherAadhaar}" style="${inputStyle}" ${action==='view'?'disabled':''}></label>
+              <label style="${labelStyle}">Bank Account<input value="${app.bankAcc}" style="${inputStyle}" ${action==='view'?'disabled':''}></label>
+              <label style="${labelStyle}">IFSC Code<input value="${app.ifsc}" style="${inputStyle}" ${action==='view'?'disabled':''}></label>
+              <div style="${labelStyle};margin-top:4px">Documents</div>
+              <div style="display:flex;flex-wrap:wrap;gap:6px">
                 ${['Aadhaar','PAN Card','Income Cert','LC','Passbook'].map((d,di) => {
                   const key = ['aadhaar','pan','income','lc','passbook'][di]
-                  return `<span style="padding:4px 8px;border-radius:6px;font-size:10px;font-weight:600;background:${app.docs?.[key]?'#dcfce7':'#fee2e2'};color:${app.docs?.[key]?'#16a34a':'#dc2626'}">${app.docs?.[key]?'✅':'❌'} ${d}</span>`
+                  return `<span style="padding:4px 10px;border-radius:${DS.radiusFull}px;font-size:11px;font-weight:500;letter-spacing:0.2px;background:${app.docs?.[key]?DS.successSubtle:DS.errorSubtle};color:${app.docs?.[key]?DS.successText:DS.errorText}">${app.docs?.[key]?'✅':'❌'} ${d}</span>`
                 }).join('')}
               </div>
-              ${app.reason ? `<div style="background:#fee2e2;color:#dc2626;padding:8px;border-radius:8px;font-size:11px;margin-top:4px">⚠️ Rejection reason: ${app.reason}</div>` : ''}
-              ${action === 'edit' ? `<button onclick="this.textContent='✅ Saved!';this.style.background='#16a34a';setTimeout(()=>this.closest('[style*=fixed]').remove(),800)" style="width:100%;padding:10px;background:#386AF6;color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;margin-top:8px">💾 Save Changes</button>` : ''}
+              ${app.reason ? `<div style="background:${DS.errorSubtle};color:${DS.errorText};padding:12px;border-radius:${DS.radiusMd}px;font-size:12px;font-weight:500;letter-spacing:0.25px;margin-top:4px">⚠️ Rejection reason: ${app.reason}</div>` : ''}
+              ${action === 'edit' ? `<button onclick="this.textContent='✅ Saved!';this.style.background='${DS.success}';setTimeout(()=>this.closest('[style*=fixed]').remove(),800)" style="width:100%;padding:14px;background:${DS.brand};color:${DS.textInverse};border:none;border-radius:${DS.radiusFull}px;font-size:16px;font-weight:600;letter-spacing:0.1px;cursor:pointer;margin-top:8px;font-family:${DS.font}">💾 Save Changes</button>` : ''}
             </div>
           </div>
         </div>`
@@ -1799,20 +1826,20 @@ export default function SuperHomePage() {
     if (has('xamta','scan','answer sheet','omr')) {
       const isMobile = window.innerWidth < 768
       const xamtaHtml = `
-        <div style="margin-top:4px">
-          <div style="font-size:12px;color:#666;margin-bottom:10px"><strong>XAMTA Assessment Scanner</strong> — Upload or scan answer sheets</div>
-          <div style="display:flex;gap:8px;margin-bottom:10px">
-            <div onclick="document.getElementById('xamta-upload')?.click()" style="flex:1;background:#F5F7FA;border:2px dashed #386AF6;border-radius:12px;padding:14px;text-align:center;cursor:pointer">
-              <div style="font-size:22px;margin-bottom:4px">📤</div>
-              <div style="font-size:11px;font-weight:700;color:#386AF6">Upload Image/PDF</div>
+        <div style="margin-top:8px;font-family:${DS.font}">
+          <div style="font-size:12px;font-weight:400;letter-spacing:0.4px;color:${DS.textSecondary};margin-bottom:12px"><strong style="color:${DS.textPrimary};font-weight:600">XAMTA Assessment Scanner</strong> — Upload or scan answer sheets</div>
+          <div style="display:flex;gap:8px;margin-bottom:12px">
+            <div onclick="document.getElementById('xamta-upload')?.click()" style="flex:1;background:${DS.brandSubtle};border:2px dashed ${DS.brand};border-radius:${DS.radiusLg}px;padding:16px;text-align:center;cursor:pointer">
+              <div style="font-size:24px;margin-bottom:8px">📤</div>
+              <div style="font-size:12px;font-weight:500;letter-spacing:0.25px;color:${DS.brand}">Upload Image/PDF</div>
             </div>
-            ${isMobile ? `<div onclick="window._vskXamtaScan?.()" style="flex:1;background:#F5F7FA;border:2px dashed #16A34A;border-radius:12px;padding:14px;text-align:center;cursor:pointer">
-              <div style="font-size:22px;margin-bottom:4px">📷</div>
-              <div style="font-size:11px;font-weight:700;color:#16A34A">Open Camera</div>
+            ${isMobile ? `<div onclick="window._vskXamtaScan?.()" style="flex:1;background:${DS.successSubtle};border:2px dashed ${DS.success};border-radius:${DS.radiusLg}px;padding:16px;text-align:center;cursor:pointer">
+              <div style="font-size:24px;margin-bottom:8px">📷</div>
+              <div style="font-size:12px;font-weight:500;letter-spacing:0.25px;color:${DS.successText}">Open Camera</div>
             </div>` : ''}
           </div>
           <input type="file" id="xamta-upload" accept="image/*,.pdf" style="display:none" onchange="window._vskXamtaFile?.(this)" />
-          <div style="font-size:10px;color:#999">Or enter marks manually using the form below</div>
+          <div style="font-size:11px;font-weight:400;letter-spacing:0.2px;color:${DS.textTertiary}">Or enter marks manually using the form below</div>
         </div>`
       addBot(`${ack} XAMTA Scanner is ready.`, [], {
         html: xamtaHtml,
@@ -2213,12 +2240,15 @@ export default function SuperHomePage() {
                           })
                         } else if (a.trigger === '_xamta_form') {
                           const results = XAMTA_SAMPLE_RESULTS || []
-                          const rows = results.map(r => `<div style="display:flex;align-items:center;padding:8px;border-bottom:1px solid #f0f0f0;gap:8px">
-                            <div style="flex:1;font-size:12px"><strong>${r.student}</strong><br><span style="color:#999;font-size:10px">Grade ${r.grade} · ${r.subject}</span></div>
-                            <span style="font-size:13px;font-weight:700;color:${r.score/r.total>=0.7?'#16a34a':'#dc2626'}">${r.score}/${r.total}</span>
+                          const rows = results.map(r => `<div style="display:flex;align-items:center;padding:12px;border-bottom:1px solid ${DS.borderSubtle};gap:8px;font-family:${DS.font}">
+                            <div style="flex:1">
+                              <div style="font-size:14px;font-weight:600;letter-spacing:-0.2px;color:${DS.textPrimary}">${r.student}</div>
+                              <div style="color:${DS.textTertiary};font-size:11px;font-weight:500;letter-spacing:0.2px;margin-top:2px">Grade ${r.grade} · ${r.subject}</div>
+                            </div>
+                            <span style="font-size:14px;font-weight:600;letter-spacing:-0.2px;color:${r.score/r.total>=0.7?DS.successText:DS.errorText}">${r.score}/${r.total}</span>
                           </div>`).join('')
                           addBot('📊 XAMTA scan results processed:', [], {
-                            html: `<div style="margin-top:4px"><div style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">${rows}</div></div>`,
+                            html: `<div style="margin-top:8px"><div style="border:1px solid ${DS.borderDefault};border-radius:${DS.radiusLg}px;overflow:hidden;background:${DS.surfaceRaised}">${rows}</div></div>`,
                             progress: ['Processing scanned sheets...', 'Matching answer keys...', 'Calculating LO scores...'],
                             actions: [
                               { label: '📥 Save results', trigger: '_save_xamta', variant: 'ok' },
