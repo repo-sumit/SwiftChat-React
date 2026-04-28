@@ -13,6 +13,7 @@ import {
   SCHOOL_INFO, XAMTA_SAMPLE_RESULTS, getAttendanceHistory,
 } from '../data/mockData'
 import { ROLE_BOTS, ROLE_SUGGESTIONS } from '../roles/roleConfig'
+import { dispatchDigiVritti, isDigiVrittiTrigger } from '../utils/digivrittiChat'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS
@@ -587,6 +588,7 @@ const QUICK_ACTIONS = {
     { icon: BarChart3,     label: 'Class\nDashboard',  bg: '#EEF2FF', fg: '#4F46E5', trigger: 'Task: dashboard'          },
     { icon: ScanLine,      label: 'XAMTA\nScan',       bg: '#E8F5E9', fg: '#16A34A', trigger: 'XAMTA scan'               },
     { icon: Award,         label: 'Namo\nLaxmi',       bg: '#F3E5F5', fg: '#9333EA', trigger: 'Task: namo_laxmi'        },
+    { icon: GraduationCap, label: 'DigiVritti\nScholarships', bg: '#FCE4EC', fg: '#E91E63', trigger: 'Task: digivritti'      },
     { icon: AlertTriangle, label: 'At-Risk\nStudents', bg: '#FEF2F2', fg: '#DC2626', trigger: 'Task: at_risk'           },
     { icon: MessageSquare, label: 'Parent\nAlert',     bg: '#E3F2FD', fg: '#1D4ED8', trigger: 'parent alert'             },
     { icon: FileText,      label: 'Generate\nReport',  bg: '#F0F4FF', fg: '#3730A3', trigger: 'Task: report_card'        },
@@ -599,6 +601,7 @@ const QUICK_ACTIONS = {
     { icon: AlertTriangle, label: 'War Room',          bg: '#FEF2F2', fg: '#DC2626', trigger: 'anomaly alerts'           },
     { icon: TrendingUp,    label: 'Class\nPerf.',      bg: '#E8F5E9', fg: '#16A34A', trigger: 'Task: class_performance'  },
     { icon: Award,         label: 'DBT\nStatus',       bg: '#FFF8E1', fg: '#D97706', trigger: 'Task: scholarship'        },
+    { icon: GraduationCap, label: 'DigiVritti\nReview',bg: '#FCE4EC', fg: '#E91E63', trigger: 'Task: digivritti'              },
     { icon: FileText,      label: 'Generate\nPDF',     bg: '#E3F2FD', fg: '#1D4ED8', trigger: 'Task: report_card'        },
     { icon: AlertTriangle, label: 'At-Risk\nStudents', bg: '#FEF2F2', fg: '#DC2626', trigger: 'Task: at_risk'           },
   ],
@@ -610,6 +613,7 @@ const QUICK_ACTIONS = {
     { icon: CalendarCheck, label: 'Att.\nSummary',     bg: '#F3E5F5', fg: '#9333EA', trigger: 'Task: attendance'         },
     { icon: GraduationCap, label: 'Learning\nOutcomes',bg: '#E3F2FD', fg: '#1D4ED8', trigger: 'Task: learning_outcomes'  },
     { icon: TrendingUp,    label: 'Critical\nAlerts',  bg: '#FEF2F2', fg: '#DC2626', trigger: 'anomaly alerts'           },
+    { icon: Award,         label: 'DigiVritti\nDistrict', bg: '#FCE4EC', fg: '#E91E63', trigger: 'Task: digivritti'           },
     { icon: FileText,      label: 'District\nReport',  bg: '#F0F4FF', fg: '#3730A3', trigger: 'Task: report_card'        },
   ],
   state_secretary: [
@@ -620,6 +624,7 @@ const QUICK_ACTIONS = {
     { icon: Brain,         label: 'Learning\nOutcomes',bg: '#E3F2FD', fg: '#1D4ED8', trigger: 'Task: learning_outcomes'  },
     { icon: TrendingUp,    label: 'Dropout\nRisk',     bg: '#FFF8E1', fg: '#D97706', trigger: 'Task: at_risk'           },
     { icon: BarChart3,     label: 'DBT\nDisbursal',    bg: '#E8F5E9', fg: '#059669', trigger: 'Task: scholarship'        },
+    { icon: GraduationCap, label: 'DigiVritti\nState', bg: '#FCE4EC', fg: '#E91E63', trigger: 'Task: digivritti'              },
     { icon: FileText,      label: 'Policy\nAdvisor',   bg: '#F0F4FF', fg: '#3730A3', trigger: 'policy advisor'           },
   ],
   parent: [
@@ -1700,6 +1705,24 @@ export default function SuperHomePage() {
   const openArtifact = useCallback((af) => setArtifact(af), [])
 
   const handleSend = useCallback((text) => {
+    // ── DigiVritti — intercepted before any other handler so the cryptic
+    // `dv:*` triggers don't leak into the user bubble area.
+    if (isDigiVrittiTrigger(text)) {
+      const isInternal = text.toLowerCase().trim().startsWith('dv:')
+      if (!isInternal) {
+        setMessages(prev => [...prev, { id: Date.now(), role:'user', text, opts:[] }])
+      }
+      const result = dispatchDigiVritti(text, role, userProfile)
+      if (result) {
+        addBot(result.text || '', result.options || [], {
+          html: result.html,
+          actions: result.actions,
+          progress: result.progress,
+        })
+      }
+      return
+    }
+
     setMessages(prev => [...prev, { id: Date.now(), role:'user', text, opts:[] }])
 
     // ── Mid-collection flow ──────────────────────────────────────────────
