@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// VSK 3.0 Role Configuration — RBAC
+// VSK Gujarat Role Configuration — RBAC
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const ROLE_LABELS = {
@@ -25,44 +25,44 @@ export const ROLE_SCOPES = {
 // Bot list per role
 export const ROLE_BOTS = {
   teacher: [
-    'VSK 3.0',
+    'VSK Gujarat',
     'Shikshak Sahayak',
     'Assessment Bot',
     'Remediation Bot',
     'Parent Connect',
   ],
   principal: [
-    'VSK 3.0',
+    'VSK Gujarat',
     'School Monitor',
     'Compliance Bot',
     'Parent Connect',
     'Report Generator',
   ],
   deo: [
-    'VSK 3.0',
+    'VSK Gujarat',
     'District Analyst',
     'DBT Monitor',
     'Intervention Bot',
     'War Room',
   ],
   state_secretary: [
-    'VSK 3.0',
+    'VSK Gujarat',
     'State Intelligence',
     'Scheme Analytics',
     'District Drilldown',
     'Policy Advisor',
   ],
   parent: [
-    'VSK 3.0',
+    'VSK Gujarat',
     'Parent Assistant',
   ],
   crc: [
-    'VSK 3.0',
+    'VSK Gujarat',
     'DigiVritti Approver',
     'Cluster Console',
   ],
   pfms: [
-    'VSK 3.0',
+    'VSK Gujarat',
     'DigiVritti Payments',
     'PFMS Console',
   ],
@@ -154,6 +154,26 @@ export const ROLE_CANVASES = {
   ],
 }
 
+// Notification permissions per role.
+//   canCreateBroadcast — only state users can broadcast to other roles.
+//   canCreateReminder  — every authenticated user can set personal reminders.
+//   canViewNotifications — every authenticated user can read their inbox.
+export const NOTIFICATION_PERMISSIONS = {
+  teacher:         { canCreateBroadcast: false, canCreateReminder: true, canViewNotifications: true  },
+  principal:       { canCreateBroadcast: false, canCreateReminder: true, canViewNotifications: true  },
+  deo:             { canCreateBroadcast: false, canCreateReminder: true, canViewNotifications: true  },
+  state_secretary: { canCreateBroadcast: true,  canCreateReminder: true, canViewNotifications: true  },
+  state:           { canCreateBroadcast: true,  canCreateReminder: true, canViewNotifications: true  },
+  parent:          { canCreateBroadcast: false, canCreateReminder: true, canViewNotifications: true  },
+  crc:             { canCreateBroadcast: false, canCreateReminder: true, canViewNotifications: true  },
+  brc:             { canCreateBroadcast: false, canCreateReminder: true, canViewNotifications: true  },
+  pfms:            { canCreateBroadcast: false, canCreateReminder: true, canViewNotifications: true  },
+}
+
+export function getNotificationPermissions(role) {
+  return NOTIFICATION_PERMISSIONS[role] || { canCreateBroadcast: false, canCreateReminder: false, canViewNotifications: false }
+}
+
 // Feature flags per role
 export const ROLE_PERMISSIONS = {
   teacher: {
@@ -164,9 +184,6 @@ export const ROLE_PERMISSIONS = {
     canViewState: false,
     canApproveScholarship: false,
     canViewTeacherData: false,
-    canCreateBroadcast: false,
-    canCreateReminder: true,
-    canViewNotifications: true,
   },
   principal: {
     canMarkAttendance: false,
@@ -176,9 +193,6 @@ export const ROLE_PERMISSIONS = {
     canViewState: false,
     canApproveScholarship: true,
     canViewTeacherData: true,
-    canCreateBroadcast: false,
-    canCreateReminder: true,
-    canViewNotifications: true,
   },
   deo: {
     canMarkAttendance: false,
@@ -188,9 +202,6 @@ export const ROLE_PERMISSIONS = {
     canViewState: false,
     canApproveScholarship: true,
     canViewTeacherData: true,
-    canCreateBroadcast: false,
-    canCreateReminder: true,
-    canViewNotifications: true,
   },
   state_secretary: {
     canMarkAttendance: false,
@@ -200,9 +211,6 @@ export const ROLE_PERMISSIONS = {
     canViewState: true,
     canApproveScholarship: true,
     canViewTeacherData: true,
-    canCreateBroadcast: true,     // only state-tier may broadcast
-    canCreateReminder: true,
-    canViewNotifications: true,
   },
   parent: {
     canMarkAttendance: false,
@@ -212,9 +220,6 @@ export const ROLE_PERMISSIONS = {
     canViewState: false,
     canApproveScholarship: false,
     canViewTeacherData: false,
-    canCreateBroadcast: false,
-    canCreateReminder: true,
-    canViewNotifications: true,
   },
   crc: {
     canMarkAttendance: false,
@@ -224,9 +229,6 @@ export const ROLE_PERMISSIONS = {
     canViewState: false,
     canApproveScholarship: true,
     canViewTeacherData: false,
-    canCreateBroadcast: false,
-    canCreateReminder: true,
-    canViewNotifications: true,
   },
   pfms: {
     canMarkAttendance: false,
@@ -236,8 +238,5 @@ export const ROLE_PERMISSIONS = {
     canViewState: true,
     canApproveScholarship: false, // PFMS does not approve eligibility
     canViewTeacherData: false,
-    canCreateBroadcast: false,
-    canCreateReminder: true,
-    canViewNotifications: true,
   },
 }

@@ -1,9 +1,8 @@
 import React from 'react'
 import { ArrowLeft, MoreVertical, X } from 'lucide-react'
 import { useApp } from '../context/AppContext'
-import NotificationBell from './notifications/NotificationBell'
 
-export default function TopBar({ title, sub, icon, dark = false, actions = [], onBack, closeButton = false, showBell = true }) {
+export default function TopBar({ title, sub, icon, dark = false, actions = [], onBack, closeButton = false }) {
   const { goBack } = useApp()
   const handleBack = onBack || goBack
 
@@ -40,8 +39,7 @@ export default function TopBar({ title, sub, icon, dark = false, actions = [], o
         )}
       </div>
 
-      <div className="flex ml-auto items-center">
-        {showBell && <NotificationBell size={20} dark={dark} />}
+      <div className="flex ml-auto">
         {actions.map((a, i) => (
           <button
             key={i}

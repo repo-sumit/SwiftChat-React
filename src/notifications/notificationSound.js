@@ -1,73 +1,57 @@
-// Lightweight Web Audio beep for new/due notifications.
+// Tiny Web Audio chime + bell-buzz hint.
 //
-// Browsers gate AudioContext start until a user gesture. We lazily build
-// the context on the first interaction-triggered call. If it's still
-// suspended we silently no-op — the bell still shakes and the toast still
-// appears, so the user doesn't lose information.
-
-import { loadPrefs, updatePrefs } from './notificationStore.js'
+// We avoid bundling audio assets — the chime is generated on the fly from
+// two short sine bursts. Browsers typically require a user interaction
+// before AudioContext.resume() succeeds, so we lazily construct the context
+// on first play and silently skip if blocked.
 
 let audioCtx = null
+let blocked = false
 
-function ensureCtx() {
-  if (typeof window === 'undefined') return null
+function getCtx() {
+  if (blocked) return null
   if (audioCtx) return audioCtx
-  const Ctor = window.AudioContext || window.webkitAudioContext
-  if (!Ctor) return null
-  try { audioCtx = new Ctor() } catch { audioCtx = null }
-  return audioCtx
-}
-
-// Mark audio as "unlocked" the first time the user gestures.
-export function unlockAudioOnGesture() {
-  const ctx = ensureCtx()
-  if (!ctx) return
-  if (ctx.state === 'suspended') {
-    ctx.resume().then(() => {
-      updatePrefs({ audioUnlocked: true })
-    }).catch(() => { /* ignore */ })
-  } else {
-    updatePrefs({ audioUnlocked: true })
-  }
-}
-
-/**
- * Play a short two-tone "buzz" sound. Returns true if it played, false if
- * suppressed (sound disabled, ctx unavailable, or autoplay-blocked).
- */
-export function playNotificationSound({ urgent = false } = {}) {
-  const prefs = loadPrefs()
-  if (prefs.soundEnabled === false) return false
-
-  const ctx = ensureCtx()
-  if (!ctx) return false
-  if (ctx.state === 'suspended') {
-    // Best-effort resume; if blocked we just bail and let the bell animate.
-    ctx.resume().catch(() => {})
-    if (ctx.state === 'suspended') return false
-  }
-
   try {
-    const now = ctx.currentTime
-    const tone = (freq, start, dur, gain) => {
-      const osc = ctx.createOscillator()
-      const g   = ctx.createGain()
-      osc.type = 'sine'
-      osc.frequency.value = freq
-      g.gain.setValueAtTime(0.0001, now + start)
-      g.gain.exponentialRampToValueAtTime(gain, now + start + 0.02)
-      g.gain.exponentialRampToValueAtTime(0.0001, now + start + dur)
-      osc.connect(g).connect(ctx.destination)
-      osc.start(now + start)
-      osc.stop(now + start + dur + 0.02)
+    const Ctor = window.AudioContext || window.webkitAudioContext
+    if (!Ctor) { blocked = true; return null }
+    audioCtx = new Ctor()
+    return audioCtx
+  } catch {
+    blocked = true
+    return null
+  }
+}
+
+function tone(ctx, freq, start, duration, gain = 0.18) {
+  const osc = ctx.createOscillator()
+  const env = ctx.createGain()
+  osc.type = 'sine'
+  osc.frequency.setValueAtTime(freq, start)
+  env.gain.setValueAtTime(0.0001, start)
+  env.gain.exponentialRampToValueAtTime(gain, start + 0.02)
+  env.gain.exponentialRampToValueAtTime(0.0001, start + duration)
+  osc.connect(env).connect(ctx.destination)
+  osc.start(start)
+  osc.stop(start + duration + 0.02)
+}
+
+export function playNotificationSound({ urgent = false } = {}) {
+  const ctx = getCtx()
+  if (!ctx) return false
+  try {
+    if (ctx.state === 'suspended') {
+      // Best-effort resume — browsers allow this only after a user gesture.
+      const p = ctx.resume?.()
+      if (p && typeof p.catch === 'function') p.catch(() => {})
     }
+    const t0 = ctx.currentTime + 0.01
     if (urgent) {
-      tone(880, 0,    0.12, 0.18)
-      tone(660, 0.16, 0.12, 0.18)
-      tone(880, 0.32, 0.16, 0.18)
+      tone(ctx, 880, t0,        0.14, 0.22)
+      tone(ctx, 1175, t0 + 0.14, 0.14, 0.22)
+      tone(ctx, 880, t0 + 0.30,  0.14, 0.22)
     } else {
-      tone(660, 0,    0.12, 0.16)
-      tone(880, 0.13, 0.18, 0.16)
+      tone(ctx, 880, t0,         0.10, 0.20)
+      tone(ctx, 1175, t0 + 0.10, 0.16, 0.20)
     }
     return true
   } catch {
@@ -75,10 +59,11 @@ export function playNotificationSound({ urgent = false } = {}) {
   }
 }
 
-export function setSoundEnabled(enabled) {
-  updatePrefs({ soundEnabled: !!enabled })
-}
-
-export function isSoundEnabled() {
-  return loadPrefs().soundEnabled !== false
+// Lets a "click" inside the app warm up the audio context so subsequent,
+// scheduler-driven plays succeed under autoplay policies.
+export function primeAudioOnUserGesture() {
+  const ctx = getCtx()
+  if (ctx && ctx.state === 'suspended') {
+    try { ctx.resume?.() } catch { /* noop */ }
+  }
 }

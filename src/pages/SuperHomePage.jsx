@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import {
-  Plus, Search, Send, Upload, ChevronRight, ArrowLeft, Camera, FileUp, Eye,
+  Plus, Search, Send, Upload, ChevronRight, ChevronUp, ArrowLeft, Camera, FileUp, Eye,
   Download, X, Menu, Sparkles,
   CalendarCheck, BarChart3, ScanLine, Award, AlertTriangle,
   MessageSquare, FileText, UserRound, BookOpen, GraduationCap,
@@ -13,7 +13,7 @@ import {
   SCHOOL_INFO, XAMTA_SAMPLE_RESULTS, getAttendanceHistory,
   ATTENDANCE_30D, SUBJECT_MASTERY_12W, SCHOOL_GRADE_BREAKDOWN,
   TOP_PERFORMERS, SCHOLARSHIP_FUNNEL, MONTHLY_DISBURSEMENT,
-  PAYMENT_FAILURES, attendance14d,
+  PAYMENT_FAILURES, attendance14d, USER_PROFILES,
 } from '../data/mockData'
 import {
   kpiGrid, lineChart, barChart, hBarList, donut, funnel,
@@ -29,6 +29,16 @@ import { isRemoteEnabled } from '../nlp/groqInterpreter'
 import { aiAnswerCardHtml } from '../nlp/aiAnswerCard'
 import { aiAnalyticsCardHtml } from '../nlp/aiAnalyticsCard'
 import NotificationBell from '../components/notifications/NotificationBell'
+import {
+  buildAskAiGreeting, buildAskAiNextChips, runAskAiPrompt,
+  processAskAiQuery, buildAskAiFallback,
+  isAskAiOpenTrigger, isAskAiMorePromptsTrigger, isAskAiFewerPromptsTrigger,
+  isAskAiRunTrigger, decodeAskAiRunTrigger,
+  ASK_AI_LABELS,
+} from '../features/askAi/askAiEngine'
+import {
+  isAskAiActionTrigger, decodeAskAiActionTrigger, runAskAiAction,
+} from '../features/askAi/askAiActions'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS
@@ -151,7 +161,7 @@ function buildLessonPlanArtifact(ctx) {
     <div style="font-family:${DS.font};padding:0 4px;color:${DS.textPrimary}">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
         <span style="font-size:11px;font-weight:500;letter-spacing:0.2px;color:${DS.textTertiary};text-transform:uppercase">LESSON PLAN</span>
-        <span style="background:${DS.brandSubtle};color:${DS.brand};font-size:11px;font-weight:500;letter-spacing:0.2px;padding:4px 10px;border-radius:${DS.radiusFull}px">VSK 3.0</span>
+        <span style="background:${DS.brandSubtle};color:${DS.brand};font-size:11px;font-weight:500;letter-spacing:0.2px;padding:4px 10px;border-radius:${DS.radiusFull}px">VSK Gujarat</span>
       </div>
       <h1 style="font-size:24px;font-weight:600;line-height:32px;margin:8px 0 4px">${topic}</h1>
       <p style="color:${DS.textSecondary};font-size:12px;font-weight:400;letter-spacing:0.4px;margin:0 0 16px">Grade ${grade} · ${subject} · ${TODAY} · 45 min</p>
@@ -282,7 +292,7 @@ function buildReportCardArtifact(ctx) {
   const html = `
     <div style="font-family:${DS.font};padding:0 4px;color:${DS.textPrimary}">
       <div style="background:linear-gradient(135deg,${DS.brand},${DS.brandHover});color:${DS.textInverse};padding:24px;border-radius:${DS.radiusLg}px;margin-bottom:16px">
-        <div style="font-size:11px;font-weight:500;letter-spacing:0.2px;opacity:0.85;text-transform:uppercase">Report Card · VSK 3.0</div>
+        <div style="font-size:11px;font-weight:500;letter-spacing:0.2px;opacity:0.85;text-transform:uppercase">Report Card · VSK Gujarat</div>
         <div style="font-size:24px;font-weight:600;line-height:32px;margin-top:4px">${student}</div>
         <div style="font-size:14px;font-weight:400;letter-spacing:0.25px;opacity:0.85">Grade ${grade} · ${SCHOOL}</div>
         <div style="font-size:12px;font-weight:400;letter-spacing:0.4px;opacity:0.75;margin-top:4px">Academic Year 2025–26</div>
@@ -996,6 +1006,7 @@ function buildInlineNamoLaxmiHtml() {
 // ─────────────────────────────────────────────────────────────────────────────
 const QUICK_ACTIONS = {
   teacher: [
+    { icon: Sparkles,      label: 'Ask AI',            bg: '#F4EEFF', fg: '#7C3AED', trigger: 'Task: ask_ai',           subtitle: 'Smart actions & insights' },
     { icon: CalendarCheck, label: 'Mark\nAttendance',  bg: '#FFF8E1', fg: '#D97706', trigger: 'Task: attendance'        },
     { icon: BarChart3,     label: 'Class\nDashboard',  bg: '#EEF2FF', fg: '#4F46E5', trigger: 'Task: dashboard'          },
     { icon: ScanLine,      label: 'XAMTA\nScan',       bg: '#E8F5E9', fg: '#16A34A', trigger: 'XAMTA scan'               },
@@ -1007,6 +1018,7 @@ const QUICK_ACTIONS = {
     { icon: BookOpen,      label: 'Lesson\nPlan',      bg: '#E8F5E9', fg: '#059669', trigger: 'Task: lesson_plan'        },
   ],
   principal: [
+    { icon: Sparkles,      label: 'Ask AI',            bg: '#F4EEFF', fg: '#7C3AED', trigger: 'Task: ask_ai',           subtitle: 'Smart actions & insights' },
     { icon: BarChart3,     label: 'School\nDashboard', bg: '#EEF2FF', fg: '#4F46E5', trigger: 'Task: dashboard'          },
     { icon: CalendarCheck, label: 'Attendance\nSummary', bg: '#FFF8E1', fg: '#D97706', trigger: 'Task: attendance'       },
     { icon: MessageSquare, label: 'Parent\nOutreach',  bg: '#F3E5F5', fg: '#9333EA', trigger: 'parent alert'             },
@@ -1018,6 +1030,7 @@ const QUICK_ACTIONS = {
     { icon: AlertTriangle, label: 'At-Risk\nStudents', bg: '#FEF2F2', fg: '#DC2626', trigger: 'Task: at_risk'           },
   ],
   deo: [
+    { icon: Sparkles,      label: 'Ask AI',            bg: '#F4EEFF', fg: '#7C3AED', trigger: 'Task: ask_ai',            subtitle: 'Smart actions & insights' },
     { icon: Building2,     label: 'District\nDash.',   bg: '#EEF2FF', fg: '#4F46E5', trigger: 'Task: district_dashboard' },
     { icon: Award,         label: 'DBT\nReport',       bg: '#FFF8E1', fg: '#D97706', trigger: 'Task: scholarship'        },
     { icon: AlertTriangle, label: 'War Room',          bg: '#FEF2F2', fg: '#DC2626', trigger: 'anomaly alerts'           },
@@ -1029,6 +1042,7 @@ const QUICK_ACTIONS = {
     { icon: FileText,      label: 'District\nReport',  bg: '#F0F4FF', fg: '#3730A3', trigger: 'Task: report_card'        },
   ],
   state_secretary: [
+    { icon: Sparkles,      label: 'Ask AI',            bg: '#F4EEFF', fg: '#7C3AED', trigger: 'Task: ask_ai',            subtitle: 'Smart actions & insights' },
     { icon: Map,           label: 'State\nDashboard',  bg: '#EEF2FF', fg: '#4F46E5', trigger: 'Task: state_dashboard'    },
     { icon: Building2,     label: 'District\nDrilldown',bg: '#E8F5E9',fg: '#16A34A', trigger: 'Task: district_dashboard' },
     { icon: Award,         label: 'Scheme\nAnalytics', bg: '#F3E5F5', fg: '#9333EA', trigger: 'Task: namo_laxmi'        },
@@ -1061,6 +1075,7 @@ const QUICK_ACTIONS = {
   ],
   // CRC · Cluster Approver — review-only DigiVritti actions.
   crc: [
+    { icon: Sparkles,      label: 'Ask AI',                bg: '#F4EEFF', fg: '#7C3AED', trigger: 'Task: ask_ai',           subtitle: 'Smart actions & insights' },
     { icon: Award,         label: 'DigiVritti\nApprover',  bg: '#FCE4EC', fg: '#E91E63', trigger: 'Task: digivritti'                  },
     { icon: AlertTriangle, label: 'Pending\nReviews',      bg: '#FFF8E1', fg: '#D97706', trigger: 'dv:canvas:review'                  },
     { icon: TrendingUp,    label: 'Resubmitted\nQueue',    bg: '#EEF2FF', fg: '#4F46E5', trigger: 'dv:canvas:review:resub'             },
@@ -1075,16 +1090,12 @@ const QUICK_ACTIONS = {
 const TASK_FLOWS = {
   attendance: {
     triggers: ['attendance','mark attendance','mark','present','absent','task: attendance','task:attendance','haajri'],
-    steps: [{ key:'grade', prompt:'Which grade?', opts:['3','5','6','8'] }],
-    inline: true,
-    progress: ['Fetching student roster...', 'Loading attendance records...', 'Building register...'],
-    done: (ctx) => `📋 Attendance register for Grade ${ctx.grade||8} — ${TODAY}`,
-    buildInline: (ctx) => buildInlineAttendanceHtml(ctx.grade || '8'),
-    actions: [
-      { label: '✅ Submit Attendance', trigger: '_submit_att', variant: 'ok' },
-      { label: '📨 Notify parents', trigger: 'parent alert', variant: 'warn' },
-      { label: '📊 View dashboard', trigger: 'Task: dashboard', variant: 'primary' },
-    ],
+    steps: [{ key:'grade', prompt:'Which class?', opts:['6-A','6-B','7-A','7-B','8-A','8-B'] }],
+    progress: ['Fetching student roster...', 'Loading attendance records...', 'Opening attendance canvas...'],
+    done: (ctx) => `📋 Opened attendance for Class ${ctx.grade || '6-B'} — tap students on the right to mark.`,
+    // Open the AttendanceCanvas right-side webview instead of an inline chat
+    // bubble. The canvas is the single source of truth for marking + submit.
+    openCanvasOnComplete: (ctx) => ({ type: 'attendance', classId: ctx.grade || '6-B' }),
   },
   at_risk: {
     triggers: ['at-risk','at risk','risk','task: at_risk','task:at_risk','dropout','struggling'],
@@ -1225,9 +1236,39 @@ function greetingReply(text, _botName, role, profile) {
 // UI COMPONENTS
 // ─────────────────────────────────────────────────────────────────────────────
 
-function VSKSidebar({ onNew, activeChatId, chatGroups, onSelect, onDelete, role, userProfile, onClose, onSignOut }) {
+// Roles offered in the bottom-left user switcher. Order matters — this is
+// the order they appear in the popover.
+const SWITCHABLE_ROLES = [
+  { id: 'teacher',         label: 'Teacher',          sublabel: 'Priya Mehta · GPS Mehsana' },
+  { id: 'principal',       label: 'Principal',        sublabel: 'Rakesh Joshi · GPS Mehsana' },
+  { id: 'crc',             label: 'CRC · Cluster Approver', sublabel: 'Mehul Parmar · MADHAPAR' },
+  { id: 'deo',             label: 'DEO',              sublabel: 'Amit Trivedi · Ahmedabad' },
+  { id: 'state_secretary', label: 'State Secretary',  sublabel: 'Nidhi Shah · Gujarat' },
+  { id: 'pfms',            label: 'PFMS · Payment Officer', sublabel: 'Farida Shaikh · PFMS Gujarat' },
+]
+
+function VSKSidebar({ onNew, activeChatId, chatGroups, onSelect, onDelete, role, userProfile, onClose, onSwitchRole }) {
   const meta = userProfile || ROLE_META[role] || ROLE_META.teacher
   const initial = (meta.name || 'U')[0].toUpperCase()
+  const [switcherOpen, setSwitcherOpen] = useState(false)
+  const switcherRef = useRef(null)
+
+  // Close the popover on outside click / Escape.
+  useEffect(() => {
+    if (!switcherOpen) return
+    const onDocClick = (e) => {
+      if (switcherRef.current && !switcherRef.current.contains(e.target)) {
+        setSwitcherOpen(false)
+      }
+    }
+    const onKey = (e) => { if (e.key === 'Escape') setSwitcherOpen(false) }
+    document.addEventListener('mousedown', onDocClick)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDocClick)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [switcherOpen])
   // Title/Large: 16px Bold; Caption: 11px Medium
   const titleLarge = { fontSize: 16, fontWeight: 700, lineHeight: '20px', fontFamily: 'Montserrat, sans-serif' }
   const caption    = { fontSize: 11, fontWeight: 500, lineHeight: '14px', letterSpacing: '0.2px', fontFamily: 'Montserrat, sans-serif' }
@@ -1327,23 +1368,78 @@ function VSKSidebar({ onNew, activeChatId, chatGroups, onSelect, onDelete, role,
         })()}
       </div>
 
-      {/* User footer */}
-      <div className="border-t px-3 py-3 flex items-center gap-2.5" style={{ borderTopColor: '#ECECEC' }}>
-        <div
-          className="w-9 h-9 rounded-full flex items-center justify-center text-white flex-shrink-0"
-          style={{ background: userProfile?.color || '#386AF6', fontSize: 14, fontWeight: 700, fontFamily: 'Montserrat, sans-serif' }}
-        >
-          {initial}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="truncate" style={{ fontSize: 14, fontWeight: 600, lineHeight: '20px', letterSpacing: '0.1px', color: '#0E0E0E', fontFamily: 'Montserrat, sans-serif' }}>{meta.name || meta.org}</div>
-          <div className="truncate" style={{ ...caption, color: '#828996' }}>{meta.badge || meta.org}</div>
-        </div>
+      {/* User footer — click to switch user (no-login mode). */}
+      <div className="relative border-t" style={{ borderTopColor: '#ECECEC' }} ref={switcherRef}>
+        {switcherOpen && (
+          <div
+            className="absolute left-3 right-3 bottom-full mb-2 bg-white rounded-xl overflow-hidden"
+            style={{ boxShadow: '0 8px 28px rgba(15, 23, 42, 0.18)', border: '1px solid #ECECEC', zIndex: 50 }}
+          >
+            <div className="px-3 py-2" style={{ ...caption, color: '#828996', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px solid #ECECEC' }}>
+              Switch user
+            </div>
+            <div className="max-h-72 overflow-y-auto py-1">
+              {SWITCHABLE_ROLES.map(opt => {
+                const active = opt.id === role
+                const profile = USER_PROFILES[opt.id]
+                const optInitial = (profile?.name || opt.label)[0].toUpperCase()
+                return (
+                  <button
+                    key={opt.id}
+                    onClick={() => {
+                      setSwitcherOpen(false)
+                      if (!active && onSwitchRole) onSwitchRole(opt.id)
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors"
+                    style={{ background: active ? '#ECECEC' : 'transparent' }}
+                    onMouseEnter={e => { if (!active) e.currentTarget.style.background = '#F4F5F7' }}
+                    onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent' }}
+                  >
+                    <div
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-white flex-shrink-0"
+                      style={{ background: profile?.color || '#386AF6', fontSize: 12, fontWeight: 700, fontFamily: 'Montserrat, sans-serif' }}
+                    >
+                      {optInitial}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="truncate" style={{ fontSize: 13, fontWeight: 600, lineHeight: '18px', color: '#0E0E0E', fontFamily: 'Montserrat, sans-serif' }}>
+                        {opt.label}
+                      </div>
+                      <div className="truncate" style={{ ...caption, color: '#828996' }}>{opt.sublabel}</div>
+                    </div>
+                    {active && (
+                      <span style={{ fontSize: 11, fontWeight: 600, color: '#386AF6', fontFamily: 'Montserrat, sans-serif' }}>Active</span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
         <button
-          onClick={onSignOut}
-          className="px-3 py-1.5 rounded-full hover:bg-[#FDEAEA] transition-colors"
-          style={{ fontSize: 12, fontWeight: 500, lineHeight: '16px', letterSpacing: '0.25px', color: '#C0392B', fontFamily: 'Montserrat, sans-serif' }}
-        >Log out</button>
+          onClick={() => setSwitcherOpen(o => !o)}
+          aria-haspopup="menu"
+          aria-expanded={switcherOpen}
+          className="w-full flex items-center gap-2.5 px-3 py-3 text-left transition-colors hover:bg-[#F4F5F7]"
+        >
+          <div
+            className="w-9 h-9 rounded-full flex items-center justify-center text-white flex-shrink-0"
+            style={{ background: userProfile?.color || '#386AF6', fontSize: 14, fontWeight: 700, fontFamily: 'Montserrat, sans-serif' }}
+          >
+            {initial}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="truncate" style={{ fontSize: 14, fontWeight: 600, lineHeight: '20px', letterSpacing: '0.1px', color: '#0E0E0E', fontFamily: 'Montserrat, sans-serif' }}>{meta.name || meta.org}</div>
+            <div className="truncate" style={{ ...caption, color: '#828996' }}>{meta.badge || meta.org}</div>
+          </div>
+          <span
+            className="flex-shrink-0 transition-transform"
+            style={{ color: '#7383A5', transform: switcherOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+            aria-hidden="true"
+          >
+            <ChevronUp size={16} />
+          </span>
+        </button>
       </div>
     </div>
   )
@@ -1553,10 +1649,14 @@ function getRoleAlerts(role, profile) {
   const risk = AT_RISK_STUDENTS?.filter(s => s.risk === 'high')?.length || 0
   const pending = NAMO_LAXMI_APPS?.filter(a => a.status === 'pending')?.length || 0
   if (role === 'teacher') return [
-    { icon: '👥', label: 'Students', value: `${STUDENTS[8]?.length || 30}`, color: '#386AF6' },
-    { icon: '⚠️', label: 'At Risk', value: `${risk}`, color: '#DC2626' },
-    { icon: '📋', label: 'NL Pending', value: `${pending}`, color: '#D97706' },
-    { icon: '📊', label: 'Avg Score', value: `${PERF_DATA[8]?.math || 74}%`, color: '#16A34A' },
+    { icon: '👥', label: 'Students',          value: `${STUDENTS[8]?.length || 30}`, color: '#386AF6',
+      canvas: { type: 'student-roster',  grade: 8, classLabel: 'Class 8' } },
+    { icon: '⚠️', label: 'At Risk',           value: `${risk}`, color: '#DC2626',
+      canvas: { type: 'at-risk-students', grade: 8 } },
+    { icon: '📋', label: 'DigiVritti Pending', value: `${pending}`, color: '#D97706',
+      trigger: 'dv:canvas:list:pending' },
+    { icon: '📊', label: 'Avg Score',         value: `${PERF_DATA[8]?.math || 74}%`, color: '#16A34A',
+      canvas: { type: 'class-report', grade: 8, classLabel: 'Class 8' } },
   ]
   if (role === 'principal') return [
     { icon: '🏫', label: 'Total Students', value: '342', color: '#386AF6' },
@@ -1599,7 +1699,7 @@ function getRoleAlerts(role, profile) {
   ]
 }
 
-function WelcomeScreen({ botName, onChip, role, profile }) {
+function WelcomeScreen({ botName, onChip, role, profile, onOpenCanvas }) {
   const suggestions = ROLE_SUGGESTIONS[role] || ROLE_SUGGESTIONS.teacher || []
   const actions = QUICK_ACTIONS[role] || QUICK_ACTIONS.teacher
   const alerts = getRoleAlerts(role, profile)
@@ -1631,20 +1731,40 @@ function WelcomeScreen({ botName, onChip, role, profile }) {
               {TIME_GREET}, {firstName}!
             </h1>
             <p style={{ ...bodyMedium, color: '#7383A5' }}>
-              {roleLabel} · VSK 3.0 Gujarat
+              {roleLabel} · VSK Gujarat
             </p>
           </div>
         </div>
 
-        {/* Today's stats strip */}
+        {/* Today's stats strip — each tile is clickable. Canvas tiles open the
+            matching right-side webview; trigger tiles re-enter the chat
+            dispatcher. Pure-display tiles stay as plain divs. */}
         <div className="grid grid-cols-4 gap-3">
-          {alerts.map((a, i) => (
-            <div key={i} className="bg-white px-4 py-4 text-center transition-shadow hover:shadow-sm" style={{ borderRadius: 12, border: '1px solid #D5D8DF' }}>
-              <div className="text-[18px] mb-1">{a.icon}</div>
-              <div style={{ fontSize: 18, fontWeight: 700, lineHeight: '24px', color: a.color, fontFamily: 'Montserrat, sans-serif' }}>{a.value}</div>
-              <div style={{ ...captionSmall, color: '#828996', textTransform: 'uppercase', marginTop: 2 }}>{a.label}</div>
-            </div>
-          ))}
+          {alerts.map((a, i) => {
+            const interactive = !!(a.canvas || a.trigger)
+            const onClick = () => {
+              if (a.canvas && typeof onOpenCanvas === 'function') {
+                onOpenCanvas(a.canvas)
+              } else if (a.trigger && typeof onChip === 'function') {
+                onChip(a.trigger)
+              }
+            }
+            const Tag = interactive ? 'button' : 'div'
+            return (
+              <Tag
+                key={i}
+                onClick={interactive ? onClick : undefined}
+                className={`bg-white px-4 py-4 text-center transition-shadow ${
+                  interactive ? 'hover:shadow-md hover:border-[#84A2F4] active:scale-[0.98] cursor-pointer' : 'hover:shadow-sm'
+                }`}
+                style={{ borderRadius: 12, border: '1px solid #D5D8DF' }}
+              >
+                <div className="text-[18px] mb-1">{a.icon}</div>
+                <div style={{ fontSize: 18, fontWeight: 700, lineHeight: '24px', color: a.color, fontFamily: 'Montserrat, sans-serif' }}>{a.value}</div>
+                <div style={{ ...captionSmall, color: '#828996', textTransform: 'uppercase', marginTop: 2 }}>{a.label}</div>
+              </Tag>
+            )
+          })}
         </div>
       </div>
 
@@ -1891,17 +2011,19 @@ function ArtifactModal({ artifact, onClose }) {
 // ─────────────────────────────────────────────────────────────────────────────
 export default function SuperHomePage() {
   const {
-    role, userProfile, signOut, openCanvas,
+    role, userProfile, switchRole, openCanvas,
     chats: userChats, activeChatId, activeChat,
     createChat, switchChat, setChatMessages, deleteChat, renameChat,
+    consumeChatTrigger, chatTriggerTick,
+    openNotificationsCanvas, markAllNotificationsRead,
   } = useApp()
-  const bots = ROLE_BOTS[role] || ROLE_BOTS.teacher || ['VSK 3.0']
+  const bots = ROLE_BOTS[role] || ROLE_BOTS.teacher || ['VSK Gujarat']
   const [activeBot, setActiveBot]   = useState(bots[0])
   const [messages, setMessages]     = useState([])
   const [typing, setTyping]         = useState(false)
   const [collectState, setCollect]  = useState(null)
   const [artifact, setArtifact]     = useState(null)
-  const [activeSession, setSession] = useState('VSK 3.0 Demo Session')
+  const [activeSession, setSession] = useState('VSK Gujarat Demo Session')
   const [sidebarOpen, setSidebar]   = useState(false)
   const [progressSteps, setProgress] = useState(null) // streaming progress text
   const [webviewCard, setWebview]    = useState(null)  // opened card for webview
@@ -1915,6 +2037,9 @@ export default function SuperHomePage() {
   const persistTimer = useRef(null)
   // NLP layer — pending clarify/confirm step that survives across messages.
   const pendingNlp = useRef(null)
+  // Ask AI — set of prompt IDs already revealed in the current Ask AI
+  // session. Reset whenever the user re-opens Ask AI or switches chats.
+  const askAiShownPrompts = useRef(new Set())
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -1922,7 +2047,7 @@ export default function SuperHomePage() {
 
   // Reset active bot when role changes
   useEffect(() => {
-    const newBots = ROLE_BOTS[role] || ['VSK 3.0']
+    const newBots = ROLE_BOTS[role] || ['VSK Gujarat']
     setActiveBot(newBots[0])
   }, [role])
 
@@ -1945,6 +2070,7 @@ export default function SuperHomePage() {
     const persisted = (userChats || []).find(c => c.id === activeChatId)
     setMessages(persisted?.messages || [])
     setCollect(null); setArtifact(null); setActiveTool(null)
+    askAiShownPrompts.current = new Set()
     hydratedFor.current = activeChatId
     // We DO NOT depend on userChats — that would re-hydrate every save tick.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1967,17 +2093,6 @@ export default function SuperHomePage() {
     return () => clearTimeout(persistTimer.current)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages, activeChatId])
-
-  // Citation chip → open the source markdown in the knowledge canvas.
-  // Registered as a window global because the chip HTML is injected via
-  // dangerouslySetInnerHTML inside the chat bubble.
-  useEffect(() => {
-    window._vskOpenKnowledge = (source, section) => {
-      if (!source) return
-      openCanvas({ type: 'knowledge', source, section: section || '' })
-    }
-    return () => { delete window._vskOpenKnowledge }
-  }, [openCanvas])
 
   // Window globals for interactive inline cards
   useEffect(() => {
@@ -2075,7 +2190,7 @@ export default function SuperHomePage() {
       const toolbar = document.getElementById('design-toolbar')
       if (toolbar) toolbar.style.display = 'none'
       const printWin = window.open('', '_blank', 'width=800,height=1100')
-      printWin.document.write(`<!DOCTYPE html><html><head><title>VSK 3.0 — Lesson Plan</title>
+      printWin.document.write(`<!DOCTYPE html><html><head><title>VSK Gujarat — Lesson Plan</title>
         <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
         <style>
           *{margin:0;padding:0;box-sizing:border-box}
@@ -2260,6 +2375,24 @@ export default function SuperHomePage() {
 
   const openArtifact = useCallback((af) => setArtifact(af), [])
 
+  // ── Notification action plumbing ─────────────────────────────────────────
+  // Notification actions that need a chat trigger (e.g. "open DigiVritti home")
+  // queue the trigger string in AppContext. We drain that queue here so the
+  // trigger flows through the same handleSend path as a real user message.
+  useEffect(() => {
+    if (typeof consumeChatTrigger !== 'function') return
+    let next = consumeChatTrigger()
+    while (next) {
+      // eslint-disable-next-line no-use-before-define
+      handleSendRef.current?.(next, { silent: true })
+      next = consumeChatTrigger()
+    }
+    // chatTriggerTick is the explicit dependency — every queue push bumps it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chatTriggerTick])
+
+  const handleSendRef = useRef(null)
+
   const handleSend = useCallback((text, opts = {}) => {
     // `silent` suppresses the user-bubble push — used by the NLP re-entry so
     // we don't echo the synthetic "Task: …" / "dv:…" trigger to the user.
@@ -2275,6 +2408,116 @@ export default function SuperHomePage() {
         : (text && text.length < 40 ? text : 'New chat')
       const created = createChat({ title, tool: tool || null })
       if (created?.id) hydratedFor.current = created.id
+    }
+
+    // ── Ask AI — global action-based AI assistant. Intercepted before any
+    // other handler so synthetic ask_ai:* triggers stay out of the user
+    // bubble area and the deterministic responses never leak into Groq.
+    if (isAskAiActionTrigger(text)) {
+      const action = decodeAskAiActionTrigger(text)
+      if (action) {
+        runAskAiAction(action, {
+          openCanvas: (ctx) => openCanvas({ ...(ctx || {}), role }),
+          runChatTrigger: (t) => setTimeout(() => handleSend(t, { silent: true }), 0),
+          openNotificationsCanvas,
+        })
+      }
+      return
+    }
+    if (isAskAiOpenTrigger(text)) {
+      // New Ask AI session — reset the shown-prompt tracker so the
+      // progressive reveal starts at the initial chip pool.
+      askAiShownPrompts.current = new Set()
+      const greet = buildAskAiGreeting(role, userProfile)
+      ;(greet.promptIds || []).forEach(id => askAiShownPrompts.current.add(id))
+      if (greet.userBubble && !silent) {
+        setMessages(prev => [...prev, { id: Date.now(), role:'user', text: greet.userBubble, opts:[] }])
+      }
+      addBot(greet.text || '', greet.opts || [], {
+        html: greet.html,
+        actions: greet.actions,
+      })
+      return
+    }
+    if (isAskAiMorePromptsTrigger(text)) {
+      if (!silent) {
+        setMessages(prev => [...prev, { id: Date.now(), role:'user', text, opts:[] }])
+      }
+      const next = buildAskAiNextChips(role, askAiShownPrompts.current)
+      ;(next.promptIds || []).forEach(id => askAiShownPrompts.current.add(id))
+      addBot(next.text || '', next.opts || [], { html: next.html, actions: next.actions })
+      return
+    }
+    if (isAskAiFewerPromptsTrigger(text)) {
+      // Collapse the chip stream back to the initial set.
+      if (!silent) {
+        setMessages(prev => [...prev, { id: Date.now(), role:'user', text, opts:[] }])
+      }
+      askAiShownPrompts.current = new Set()
+      const greet = buildAskAiGreeting(role, userProfile)
+      ;(greet.promptIds || []).forEach(id => askAiShownPrompts.current.add(id))
+      addBot('Showing the starter prompts again. Tap one or type your own question.', greet.opts || [])
+      return
+    }
+    if (isAskAiRunTrigger(text)) {
+      const promptId = decodeAskAiRunTrigger(text)
+      const directive = runAskAiPrompt(promptId, { role, alreadyEchoedUser: silent })
+      if (directive) {
+        if (directive.userBubble && !silent) {
+          setMessages(prev => [...prev, { id: Date.now(), role:'user', text: directive.userBubble, opts:[] }])
+        }
+        addBot(directive.text || '', directive.opts || [], {
+          html: directive.html,
+          actions: directive.actions,
+          progress: directive.progress,
+        })
+        return
+      }
+    }
+
+    // Free-form Ask AI matching — only kicks in for user-typed text (not
+    // synthetic triggers) and only when the closest prompt scores high enough.
+    if (!silent && !text.toLowerCase().startsWith('task:') && !text.toLowerCase().startsWith('dv:')) {
+      const askAiResult = processAskAiQuery(text, { role })
+      if (askAiResult) {
+        // Push the user message first so the chat reads naturally.
+        setMessages(prev => [...prev, { id: Date.now(), role:'user', text, opts:[] }])
+        if (askAiResult.kind === 'greeting') {
+          askAiShownPrompts.current = new Set()
+          const greet = buildAskAiGreeting(role, userProfile)
+          ;(greet.promptIds || []).forEach(id => askAiShownPrompts.current.add(id))
+          addBot(greet.text || '', greet.opts || [], { html: greet.html })
+          return
+        }
+        if (askAiResult.kind === 'more-prompts') {
+          const next = buildAskAiNextChips(role, askAiShownPrompts.current)
+          ;(next.promptIds || []).forEach(id => askAiShownPrompts.current.add(id))
+          addBot(next.text || '', next.opts || [], { html: next.html })
+          return
+        }
+        if (askAiResult.kind === 'fewer-prompts') {
+          askAiShownPrompts.current = new Set()
+          const greet = buildAskAiGreeting(role, userProfile)
+          ;(greet.promptIds || []).forEach(id => askAiShownPrompts.current.add(id))
+          addBot('Showing the starter prompts again. Tap one or type your own question.', greet.opts || [])
+          return
+        }
+        if (askAiResult.kind === 'inline') {
+          addBot(askAiResult.directive.text || '', askAiResult.directive.opts || [])
+          return
+        }
+        if (askAiResult.kind === 'prompt') {
+          const directive = runAskAiPrompt(askAiResult.promptId, { role, alreadyEchoedUser: true })
+          if (directive) {
+            addBot(directive.text || '', directive.opts || [], {
+              html: directive.html,
+              actions: directive.actions,
+              progress: directive.progress,
+            })
+            return
+          }
+        }
+      }
     }
 
     // ── DigiVritti — intercepted before any other handler so the cryptic
@@ -2396,7 +2639,15 @@ export default function SuperHomePage() {
         addBot(next.prompt, next.opts || [])
       } else {
         setCollect(null)
-        if (flow.inline && flow.buildInline) {
+        if (typeof flow.openCanvasOnComplete === 'function') {
+          // Flows that complete by opening a right-side canvas (e.g. the
+          // attendance marking webview). Show a short progress bubble in chat
+          // so the user sees the hand-off, then open the canvas.
+          const ctxOut = flow.openCanvasOnComplete(newCtx) || {}
+          const doneText = typeof flow.done === 'function' ? flow.done(newCtx) : flow.done
+          addBot(doneText, [], { progress: flow.progress })
+          setTimeout(() => openCanvas({ ...ctxOut, role }), 300)
+        } else if (flow.inline && flow.buildInline) {
           const html = flow.buildInline(newCtx)
           const doneText = typeof flow.done === 'function' ? flow.done(newCtx) : flow.done
           addBot(doneText, [], { html, actions: flow.actions, progress: flow.progress })
@@ -2652,6 +2903,20 @@ export default function SuperHomePage() {
           setTimeout(() => handleSend(d.trigger, { silent: true }), 0)
         } else if (d.canvas) {
           openCanvas({ ...d.canvas, role })
+        } else if (d.notification) {
+          // Notification-module directives: open the notifications canvas in
+          // the requested view, optionally with a prefilled broadcast form,
+          // or run a no-UI bulk action like "mark all read".
+          if (d.notification.markAllRead) {
+            markAllNotificationsRead?.()
+            addBot('All notifications marked as read.')
+          } else {
+            const view = d.notification.view || 'list'
+            openNotificationsCanvas?.({
+              view,
+              broadcastPrefill: view === 'broadcast' ? (d.notification.prefill || null) : null,
+            })
+          }
         } else if (d.reply) {
           addBot(d.reply.text || '', d.reply.chips || [], {
             html: d.reply.html,
@@ -2689,7 +2954,8 @@ export default function SuperHomePage() {
     }
 
     {
-      // Helper — render an analytics payload as a chat bubble.
+      // Helper — render an analytics payload from the data-query layer
+      // as a chat bubble using the analytics card template.
       const renderAnalytics = (analytics) => {
         pendingNlp.current = null
         addBot(analytics.assistantText || '', [], {
@@ -2783,239 +3049,55 @@ export default function SuperHomePage() {
       fallbackOpts[role] || fallbackOpts.teacher)
   }, [collectState, activeBot, bots, addBot, openArtifact, role, userProfile, openCanvas, activeChatId, createChat])
 
+  // Keep the ref pointed at the latest handleSend so the queue-drain effect
+  // can call it without re-running every time the callback identity changes.
+  useEffect(() => { handleSendRef.current = handleSend }, [handleSend])
+
   // ── Design Tool handler (Canva / Adobe) ──────────────────────────────────
+  // Routes through the new WorksheetTemplateCanvas + WorksheetEditorCanvas
+  // flow so the user can pick a template + style before landing on the
+  // editor. The legacy hardcoded card-builder has been retired.
   const handleDesignTool = useCallback((text, tool) => {
     setMessages(prev => [...prev, { id: Date.now(), role:'user', text: `[${tool === 'canva' ? '🎨 Canva' : '🅰️ Adobe'}] ${text}`, opts:[] }])
     setActiveTool(null)
-    const q = text.toLowerCase()
-    const isLesson = q.includes('lesson') || q.includes('plan') || q.includes('teach')
-    const isReport = q.includes('report') || q.includes('card')
+
+    const q = (text || '').toLowerCase()
+
+    // Best-effort topic / subject extraction so the picker lands populated.
+    const gradeMatch = q.match(/(?:grade|class)\s*(\d+)/i)
+    const classId = gradeMatch ? `Class ${gradeMatch[1]}` : 'Class 6'
+    const topicMatch = q.match(/(?:on|about|for|topic)\s+(.+?)(?:\s+for|\s+grade|\s+class|$)/i)
+    const fallbackTitle = (text || '').replace(/^(create|make|design|generate)\s+/i,'').replace(/\s+(with|using|in)\s+(canva|adobe).*/i,'').trim()
+    const topic = topicMatch ? topicMatch[1].replace(/^(a|the)\s/i,'').trim() : (fallbackTitle || 'Fractions Readiness')
+    const subject = q.includes('math') ? 'Mathematics'
+                  : q.includes('sci') ? 'Science'
+                  : q.includes('guj') ? 'Gujarati'
+                  : 'Mathematics'
 
     const toolLabel = tool === 'canva' ? 'Canva' : 'Adobe Express'
-    const g1 = tool === 'canva' ? '#7B2FF2' : '#E8344E'
-    const g2 = tool === 'canva' ? '#00C4CC' : '#1B1B2F'
 
-    const gradeMatch = q.match(/(?:grade|class)\s*(\d+)/i)
-    const grade = gradeMatch ? gradeMatch[1] : '6'
-    const topicMatch = q.match(/(?:on|about|for|topic)\s+(.+?)(?:\s+for|\s+grade|\s+class|$)/i)
-    // Use the user's full input as the title if no topic pattern matched
-    const fallbackTitle = text.replace(/^(create|make|design|generate)\s+/i,'').replace(/\s+(with|using|in)\s+(canva|adobe).*/i,'').trim()
-    const topic = topicMatch ? topicMatch[1].replace(/^(a|the)\s/i,'') : (fallbackTitle || (isLesson ? 'Photosynthesis' : isReport ? 'Student Report' : 'School Notice'))
-    const subject = q.includes('math') ? 'Mathematics' : q.includes('sci') ? 'Science' : q.includes('guj') ? 'Gujarati' : 'Science'
-
-    const themes = tool === 'canva'
-      ? [['#7B2FF2','#00C4CC'],['#FF6B6B','#FFC93C'],['#4361EE','#3A0CA3'],['#06D6A0','#118AB2'],['#F72585','#7209B7']]
-      : [['#E8344E','#1B1B2F'],['#FF6F3C','#2D132C'],['#0D1B2A','#1B263B'],['#2C3E50','#E74C3C'],['#1A1A2E','#E94560']]
-
-    // ── Toolbar HTML ──────────────────────────────────────────────────────
-    const toolbar = `
-      <div id="design-toolbar" style="display:flex;align-items:center;gap:8px;padding:12px 0;margin-bottom:12px;border-bottom:1px solid #E2E8F0;flex-wrap:wrap;font-family:Montserrat,sans-serif">
-        <button onclick="window._vskEditMode?.()" id="edit-toggle" style="padding:6px 14px;border-radius:8px;border:1.5px solid #E2E8F0;background:white;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">✏️ Edit Text</button>
-        <div style="display:flex;gap:4px;align-items:center">
-          <span style="font-size:10px;color:#999;font-weight:600">Theme:</span>
-          ${themes.map(([c1,c2],i) => `<div onclick="window._vskTheme?.('${c1}','${c2}')" style="width:20px;height:20px;border-radius:50%;background:linear-gradient(135deg,${c1},${c2});cursor:pointer;border:2px solid ${i===0?'#333':'transparent'}"></div>`).join('')}
-        </div>
-        <div style="flex:1"></div>
-        <button onclick="window._vskDownloadPdf?.()" style="padding:6px 14px;border-radius:8px;background:${g1};color:white;border:none;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">📥 Download PDF</button>
-      </div>`
-
-    // ── CANVA template ────────────────────────────────────────────────────
-    const canvaHtml = `
-      <div id="design-root" style="font-family:Montserrat,sans-serif;max-width:100%">
-        ${toolbar}
-        <div id="design-content">
-          <!-- Hero banner -->
-          <div id="hero-grad" style="background:linear-gradient(135deg,${g1},${g2});border-radius:20px;padding:28px 24px;color:white;margin-bottom:14px;position:relative;overflow:hidden">
-            <div style="position:absolute;top:-30px;right:-30px;width:140px;height:140px;border-radius:50%;background:rgba(255,255,255,0.08)"></div>
-            <div style="position:absolute;bottom:-40px;left:40%;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,0.05)"></div>
-            <div style="position:absolute;top:10px;right:16px;font-size:28px;opacity:0.25">🎨</div>
-            <div style="font-size:9px;font-weight:700;letter-spacing:2px;opacity:0.6;margin-bottom:8px">LESSON PLAN · CANVA</div>
-            <div contenteditable="false" class="ce" style="font-size:26px;font-weight:900;margin-bottom:6px;line-height:1.15;outline:none">${topic}</div>
-            <div contenteditable="false" class="ce" style="font-size:14px;opacity:0.85;outline:none">Grade ${grade} · ${subject}</div>
-            <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-              <span style="background:rgba(255,255,255,0.2);padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600">⏱ 45 min</span>
-              <span style="background:rgba(255,255,255,0.2);padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600">📍 ${SCHOOL}</span>
-              <span style="background:rgba(255,255,255,0.2);padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600">📅 ${TODAY}</span>
-            </div>
-          </div>
-
-          <!-- Quick info strip -->
-          <div style="display:flex;gap:6px;margin-bottom:14px">
-            ${[['👩‍🏫','Teacher','Priya Mehta'],['📖','Textbook','Ch. 7 — GCERT'],['🧪','Activity','Hands-on Lab'],['📊','Assessment','Exit Ticket']].map(([ic,l,v])=>`
-              <div style="flex:1;background:#F9FAFB;border:1px solid #E5E7EB;border-radius:12px;padding:8px;text-align:center">
-                <div style="font-size:16px;margin-bottom:2px">${ic}</div>
-                <div style="font-size:8px;color:#999;font-weight:700;letter-spacing:0.5px">${l.toUpperCase()}</div>
-                <div contenteditable="false" class="ce" style="font-size:10px;font-weight:600;color:#374151;outline:none">${v}</div>
-              </div>`).join('')}
-          </div>
-
-          <!-- 2-col: Objectives + Materials -->
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
-            <div style="background:linear-gradient(135deg,#F0EAFF,#E8DFFF);border-radius:14px;padding:14px">
-              <div style="font-size:10px;font-weight:700;color:#7B2FF2;margin-bottom:8px;letter-spacing:0.5px">🎯 LEARNING OBJECTIVES</div>
-              <div contenteditable="false" class="ce" style="font-size:11px;color:#374151;line-height:1.7;outline:none">• Understand the concept of ${topic} and its significance<br>• Identify key elements through observation<br>• Apply knowledge to solve real-world problems<br>• Demonstrate understanding through group work<br>• Self-assess using exit ticket</div>
-            </div>
-            <div style="background:linear-gradient(135deg,#E0F7FA,#B2EBF2);border-radius:14px;padding:14px">
-              <div style="font-size:10px;font-weight:700;color:#00838F;margin-bottom:8px;letter-spacing:0.5px">📚 TEACHING MATERIALS</div>
-              <div contenteditable="false" class="ce" style="font-size:11px;color:#374151;line-height:1.7;outline:none">• Whiteboard + colored markers<br>• Chart paper with key diagrams<br>• G-SHALA digital module<br>• Printed practice worksheets<br>• Student notebooks & pencils</div>
-            </div>
-          </div>
-
-          <!-- Lesson flow timeline -->
-          <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:14px;padding:14px;margin-bottom:14px">
-            <div style="font-size:10px;font-weight:700;color:#B45309;margin-bottom:10px;letter-spacing:0.5px">⏱️ LESSON FLOW — 45 MINUTES</div>
-            ${[
-              {t:'5 min',ic:'🔔',title:'Warm-up & Hook',desc:'Begin with a thought-provoking question: "Why do leaves change color?" Show a 60-second video clip from G-SHALA.'},
-              {t:'12 min',ic:'📖',title:'Core Explanation',desc:`Use board work with colored diagrams to explain ${topic}. Reference textbook Ch. 7 with visual aids.`},
-              {t:'12 min',ic:'✍️',title:'Guided Practice',desc:'Solve 3 example problems together. Students complete 4 practice problems independently in notebooks.'},
-              {t:'10 min',ic:'👥',title:'Group Activity',desc:'Form groups of 4. Each group creates a mind-map of key concepts. Present findings to class (2 min each).'},
-              {t:'6 min',ic:'📝',title:'Assessment & Wrap-up',desc:'Exit ticket: 3 MCQs + 1 short answer. Collect, review, and preview next class topic.'},
-            ].map((s,i) => `
-              <div style="display:flex;gap:10px;margin-bottom:${i<4?'10':'0'}px;${i<4?'padding-bottom:10px;border-bottom:1px dashed #FDE68A':''}">
-                <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;width:36px">
-                  <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,${g1},${g2});color:white;font-size:12px;display:flex;align-items:center;justify-content:center">${s.ic}</div>
-                  ${i<4?'<div style="width:2px;flex:1;background:#FDE68A;margin-top:4px"></div>':''}
-                </div>
-                <div style="flex:1">
-                  <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
-                    <span style="font-size:11px;font-weight:700;color:#374151">${s.title}</span>
-                    <span style="font-size:9px;padding:1px 6px;border-radius:10px;background:#FEF3C7;color:#92400E;font-weight:600">${s.t}</span>
-                  </div>
-                  <div contenteditable="false" class="ce" style="font-size:10.5px;color:#6B7280;line-height:1.5;outline:none">${s.desc}</div>
-                </div>
-              </div>`).join('')}
-          </div>
-
-          <!-- 3-col bottom cards -->
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
-            <div style="background:#E8F5E9;border-radius:12px;padding:12px">
-              <div style="font-size:10px;font-weight:700;color:#2E7D32;margin-bottom:6px">🎓 LEARNING OUTCOMES</div>
-              <div contenteditable="false" class="ce" style="font-size:10px;color:#374151;line-height:1.6;outline:none">LO1: Recall concepts<br>LO2: Explain with examples<br>LO3: Solve problems<br>LO4: Apply to new scenarios</div>
-            </div>
-            <div style="background:#FFF0F0;border-radius:12px;padding:12px">
-              <div style="font-size:10px;font-weight:700;color:#DC2626;margin-bottom:6px">⚠️ DIFFERENTIATION</div>
-              <div contenteditable="false" class="ce" style="font-size:10px;color:#374151;line-height:1.6;outline:none">Advanced: Extension problems<br>Struggling: Peer buddy system<br>Visual: Extra diagram support<br>Kinesthetic: Lab activity</div>
-            </div>
-            <div style="background:#EEF2FF;border-radius:12px;padding:12px">
-              <div style="font-size:10px;font-weight:700;color:#4338CA;margin-bottom:6px">📋 HOMEWORK</div>
-              <div contenteditable="false" class="ce" style="font-size:10px;color:#374151;line-height:1.6;outline:none">• Textbook Ex. 7.3 (Q1-5)<br>• Draw and label diagram<br>• Write 5 real-world examples<br>• Due: Next class</div>
-            </div>
-          </div>
-
-          <!-- Footer -->
-          <div style="text-align:center;padding:10px;background:#F9FAFB;border-radius:10px;border:1px solid #E5E7EB">
-            <div style="font-size:9px;color:#999;font-weight:600">Generated with ${toolLabel} AI · VSK 3.0 Gujarat · ${TODAY}</div>
-          </div>
-        </div>
-      </div>`
-
-    // ── ADOBE template ────────────────────────────────────────────────────
-    const adobeHtml = `
-      <div id="design-root" style="font-family:'Segoe UI',Roboto,sans-serif;max-width:100%;color:#1B1B2F">
-        ${toolbar}
-        <div id="design-content">
-          <!-- Adobe hero — dark, typographic, sharp edges -->
-          <div id="hero-grad" style="background:linear-gradient(160deg,${g1} 0%,${g2} 100%);padding:32px 24px;color:white;margin-bottom:16px;position:relative;overflow:hidden">
-            <div style="position:absolute;inset:0;background:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2260%22><rect width=%2260%22 height=%2260%22 fill=%22none%22/><path d=%22M0 60L60 0%22 stroke=%22rgba(255,255,255,0.04)%22 stroke-width=%221%22/></svg>');opacity:0.5"></div>
-            <div style="position:relative;z-index:1">
-              <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
-                <div style="width:3px;height:24px;background:${g1};border-radius:2px"></div>
-                <span style="font-size:10px;font-weight:800;letter-spacing:3px;text-transform:uppercase;opacity:0.6">LESSON PLAN</span>
-              </div>
-              <div contenteditable="false" class="ce" style="font-size:32px;font-weight:900;line-height:1.05;margin-bottom:8px;letter-spacing:-0.5px;outline:none">${topic}</div>
-              <div style="width:60px;height:3px;background:${g1};margin-bottom:12px"></div>
-              <div contenteditable="false" class="ce" style="font-size:14px;font-weight:400;opacity:0.8;outline:none">Grade ${grade} · ${subject} · ${SCHOOL}</div>
-              <div style="display:flex;gap:12px;margin-top:14px;font-size:11px;opacity:0.6">
-                <span>⏱ 45 min</span><span>📅 ${TODAY}</span><span>👩‍🏫 Priya Mehta</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Adobe stat bar -->
-          <div style="display:flex;gap:0;margin-bottom:16px;border:1px solid #E5E7EB;overflow:hidden">
-            ${[['Duration','45 min','⏱'],['Students','34','👥'],['Complexity','Medium','📊'],['Textbook','Ch. 7','📖'],['Assessment','Exit Ticket','📝']].map(([l,v,ic],i)=>`
-              <div style="flex:1;padding:10px 8px;text-align:center;${i>0?'border-left:1px solid #E5E7EB':''}">
-                <div style="font-size:14px;margin-bottom:2px">${ic}</div>
-                <div style="font-size:9px;color:#999;font-weight:700;letter-spacing:0.5px;text-transform:uppercase">${l}</div>
-                <div contenteditable="false" class="ce" style="font-size:11px;font-weight:700;color:#1B1B2F;outline:none">${v}</div>
-              </div>`).join('')}
-          </div>
-
-          <!-- Objectives & Materials — Adobe uses sharp left-border accent -->
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
-            <div style="border-left:4px solid ${g1};padding:12px 14px;background:#FAFAFA">
-              <div style="font-size:10px;font-weight:800;color:${g1};margin-bottom:8px;letter-spacing:1px">LEARNING OBJECTIVES</div>
-              <div contenteditable="false" class="ce" style="font-size:11px;color:#4A4A4A;line-height:1.8;outline:none">① Understand the concept of ${topic}<br>② Identify and explain key elements<br>③ Apply knowledge to solve problems<br>④ Evaluate through group activity<br>⑤ Self-assess with exit questions</div>
-            </div>
-            <div style="border-left:4px solid #FF6F3C;padding:12px 14px;background:#FAFAFA">
-              <div style="font-size:10px;font-weight:800;color:#FF6F3C;margin-bottom:8px;letter-spacing:1px">RESOURCES & MATERIALS</div>
-              <div contenteditable="false" class="ce" style="font-size:11px;color:#4A4A4A;line-height:1.8;outline:none">① Whiteboard + colored markers<br>② Chart paper with key diagrams<br>③ G-SHALA digital content module<br>④ Printed practice worksheets (34×)<br>⑤ Notebooks, pencils, ruler</div>
-            </div>
-          </div>
-
-          <!-- Lesson flow — Adobe uses numbered blocks with sharp design -->
-          <div style="margin-bottom:16px">
-            <div style="font-size:10px;font-weight:800;color:#1B1B2F;letter-spacing:1px;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid #1B1B2F">LESSON FLOW — TIMELINE</div>
-            ${[
-              {t:'0–5',ph:'ENGAGE',ic:'🔔',title:'Hook & Warm-up',desc:`Open with: "What happens when a plant is kept in a dark room?" Show 60-sec G-SHALA video. Cold-call 3 students for predictions. Build curiosity for ${topic}.`,bg:'#FEF3C7',bc:'#F59E0B'},
-              {t:'5–17',ph:'EXPLAIN',ic:'📖',title:'Core Instruction',desc:`Board work: Draw labeled diagram of ${topic} process. Use colored markers for different stages. Students copy diagram. Reference GCERT textbook Ch. 7, pages 84-89. Pause for Q&A after each stage.`,bg:'#DBEAFE',bc:'#3B82F6'},
-              {t:'17–29',ph:'PRACTICE',ic:'✍️',title:'Guided & Independent',desc:'Solve 3 problems together on board (I do → We do). Students attempt 4 problems independently (You do). Walk around class — check for common errors. Give real-time verbal feedback.',bg:'#E0E7FF',bc:'#6366F1'},
-              {t:'29–39',ph:'COLLABORATE',ic:'👥',title:'Group Activity',desc:'Form 8 groups of 4. Each group: create mind-map poster of key concepts. Use chart paper + markers. Present to class (90 sec each). Peer scoring rubric.',bg:'#D1FAE5',bc:'#10B981'},
-              {t:'39–45',ph:'ASSESS',ic:'📝',title:'Wrap-up & Assessment',desc:'Exit ticket: 3 MCQs + 1 short answer. Collect and quick-scan. Show correct answers. Announce homework. Preview next class topic.',bg:'#FEE2E2',bc:'#EF4444'},
-            ].map((s,i) => `
-              <div style="display:flex;gap:0;margin-bottom:8px;border:1px solid #E5E7EB;overflow:hidden">
-                <div style="width:54px;background:${s.bg};display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 4px;flex-shrink:0;border-right:3px solid ${s.bc}">
-                  <div style="font-size:16px;margin-bottom:2px">${s.ic}</div>
-                  <div style="font-size:8px;font-weight:800;color:${s.bc}">${s.t}</div>
-                  <div style="font-size:7px;font-weight:700;color:${s.bc};letter-spacing:0.5px">${s.ph}</div>
-                </div>
-                <div style="flex:1;padding:10px 12px">
-                  <div style="font-size:12px;font-weight:700;color:#1B1B2F;margin-bottom:3px">${s.title}</div>
-                  <div contenteditable="false" class="ce" style="font-size:10.5px;color:#6B7280;line-height:1.55;outline:none">${s.desc}</div>
-                </div>
-              </div>`).join('')}
-          </div>
-
-          <!-- 3-col bottom -->
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
-            <div style="border-left:3px solid #10B981;padding:10px 12px;background:#F9FAFB">
-              <div style="font-size:9px;font-weight:800;color:#10B981;letter-spacing:0.5px;margin-bottom:6px">LEARNING OUTCOMES</div>
-              <div contenteditable="false" class="ce" style="font-size:10px;color:#374151;line-height:1.6;outline:none">LO1: Define & recall<br>LO2: Explain with diagrams<br>LO3: Solve numericals<br>LO4: Apply to real life</div>
-            </div>
-            <div style="border-left:3px solid #F59E0B;padding:10px 12px;background:#F9FAFB">
-              <div style="font-size:9px;font-weight:800;color:#F59E0B;letter-spacing:0.5px;margin-bottom:6px">DIFFERENTIATION</div>
-              <div contenteditable="false" class="ce" style="font-size:10px;color:#374151;line-height:1.6;outline:none">Advanced: Extension Qs<br>Struggling: Peer buddy<br>Visual: Extra diagrams<br>Kinesthetic: Lab model</div>
-            </div>
-            <div style="border-left:3px solid #6366F1;padding:10px 12px;background:#F9FAFB">
-              <div style="font-size:9px;font-weight:800;color:#6366F1;letter-spacing:0.5px;margin-bottom:6px">HOMEWORK</div>
-              <div contenteditable="false" class="ce" style="font-size:10px;color:#374151;line-height:1.6;outline:none">• Ex. 7.3 (Q1-5)<br>• Draw labeled diagram<br>• 5 real-world examples<br>• Due: Next class</div>
-            </div>
-          </div>
-
-          <!-- Footer -->
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#1B1B2F;color:white;font-size:9px">
-            <span style="opacity:0.5">Adobe Express · VSK 3.0</span>
-            <span style="opacity:0.5">${SCHOOL} · ${TODAY}</span>
-          </div>
-        </div>
-      </div>`
-
-    const designHtml = tool === 'canva' ? canvaHtml : adobeHtml
-
-    const card = {
-      title: `${topic} — ${toolLabel}`,
-      icon: tool === 'canva' ? '🎨' : '🅰️',
-      subtitle: `Grade ${grade} · ${subject} · Created with ${toolLabel}`,
-      preview: `<div style="text-align:center;padding:8px"><div style="background:linear-gradient(135deg,${g1},${g2});border-radius:10px;padding:14px;color:white;font-size:13px;font-weight:700">${topic}<div style="font-size:10px;opacity:0.7;margin-top:4px">Grade ${grade} · ${subject}</div></div></div>`,
-      fullHtml: designHtml,
-      timestamp: Date.now(),
-    }
-
-    addBot(`✨ Your lesson plan has been created with ${toolLabel}! Tap the card to view, edit text, change theme, or download as PDF.`, [], {
-      card,
-      progress: [`Opening ${toolLabel} workspace...`, 'Selecting template...', 'Generating design with AI...', 'Adding images and graphics...', 'Finalizing layout...'],
+    addBot(`✨ Opening the ${toolLabel}-style template picker for "${topic}".`, [], {
+      progress: [
+        `Opening ${toolLabel} workspace...`,
+        'Loading design templates...',
+        'Pre-selecting style...',
+      ],
     })
-  }, [addBot])
+
+    // Defer slightly so the chat update commits before the canvas slides in.
+    setTimeout(() => {
+      openCanvas({
+        type: 'worksheet-template',
+        subject,
+        topic,
+        classId,
+        preferredStyle: tool === 'adobe' ? 'adobe' : 'canva',
+        sourceLessonPlan: null,
+        sourceGroup: null,
+      })
+    }, 300)
+  }, [addBot, openCanvas])
+
 
   const handleNew = useCallback(() => {
     // Persist any pending messages on the current chat first.
@@ -3084,7 +3166,7 @@ export default function SuperHomePage() {
           role={role}
           userProfile={userProfile}
           onClose={() => setSidebar(false)}
-          onSignOut={signOut}
+          onSwitchRole={switchRole}
         />
       </div>
 
@@ -3105,7 +3187,7 @@ export default function SuperHomePage() {
 
           <div className="flex-1" />
 
-          <NotificationBell size={20} />
+          <NotificationBell />
         </div>
 
         {/* Chat + artifact split */}
@@ -3115,7 +3197,7 @@ export default function SuperHomePage() {
           <div className="flex-1 flex flex-col min-w-0 overflow-hidden" style={{ background: '#FFFFFF' }}>
             <div className="flex-1 overflow-y-auto overflow-x-hidden px-3 sm:px-4 pt-4" style={{ background: '#FFFFFF', paddingBottom: 16 }}>
               {!hasMessages ? (
-                <WelcomeScreen botName={activeBot} onChip={handleSend} role={role} profile={userProfile} />
+                <WelcomeScreen botName={activeBot} onChip={handleSend} role={role} profile={userProfile} onOpenCanvas={ctx => openCanvas({ ...ctx, role })} />
               ) : (
                 <>
                   {messages.map(msg => (

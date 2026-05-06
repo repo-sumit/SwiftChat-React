@@ -238,6 +238,102 @@ export const ACTIONS = {
     run: () => ({ trigger: 'dv:ai:menu' }),
   },
 
+  // Ask AI ────────────────────────────────────────────────────────────────
+  OPEN_ASK_AI: {
+    id: 'OPEN_ASK_AI',
+    module: 'ask_ai',
+    label: 'Open Ask AI',
+    allowedRoles: ['teacher', 'principal', 'crc', 'deo', 'state_secretary', 'pfms'],
+    requiredEntities: [],
+    requiresConfirmation: false,
+    run: () => ({ trigger: 'Task: ask_ai' }),
+  },
+  ASK_AI_MORE_PROMPTS: {
+    id: 'ASK_AI_MORE_PROMPTS',
+    module: 'ask_ai',
+    label: 'Show all Ask AI prompts',
+    allowedRoles: ['teacher', 'principal', 'crc', 'deo', 'state_secretary', 'pfms'],
+    requiredEntities: [],
+    requiresConfirmation: false,
+    run: () => ({ trigger: 'ask_ai:more' }),
+  },
+  ASK_AI_RUN_PROMPT: {
+    id: 'ASK_AI_RUN_PROMPT',
+    module: 'ask_ai',
+    label: 'Run Ask AI prompt',
+    allowedRoles: ['teacher', 'principal', 'crc', 'deo', 'state_secretary', 'pfms'],
+    requiredEntities: [],
+    requiresConfirmation: false,
+    // Defers to handleSend's free-form Ask AI matcher by re-emitting the
+    // user's literal question. The matcher resolves it deterministically.
+    run: ({ entities }) => ({ trigger: entities.askAiPrompt || entities.question || 'Task: ask_ai' }),
+  },
+  ASK_AI_OPEN_RECOMMENDED_ACTION: {
+    id: 'ASK_AI_OPEN_RECOMMENDED_ACTION',
+    module: 'ask_ai',
+    label: 'Open Ask AI recommended action',
+    allowedRoles: ['teacher', 'principal', 'crc', 'deo', 'state_secretary', 'pfms'],
+    requiredEntities: [],
+    requiresConfirmation: false,
+    run: ({ entities }) => ({ trigger: entities.askAiActionTrigger || 'Task: ask_ai' }),
+  },
+
+  // Notifications & reminders ─────────────────────────────────────────────
+  OPEN_NOTIFICATIONS: {
+    id: 'OPEN_NOTIFICATIONS',
+    module: 'notifications',
+    label: 'Open Notifications',
+    allowedRoles: ['teacher', 'principal', 'crc', 'deo', 'state_secretary', 'pfms', 'parent', 'brc'],
+    requiredEntities: [],
+    requiresConfirmation: false,
+    run: () => ({ notification: { view: 'list' } }),
+  },
+  CREATE_REMINDER: {
+    id: 'CREATE_REMINDER',
+    module: 'notifications',
+    label: 'Add Reminder',
+    allowedRoles: ['teacher', 'principal', 'crc', 'deo', 'state_secretary', 'pfms', 'parent', 'brc'],
+    requiredEntities: [],
+    requiresConfirmation: false,
+    run: ({ entities }) => ({
+      notification: {
+        view: 'reminder',
+        prefill: {
+          title: entities.reminderTitle || '',
+          scheduledAtHint: entities.reminderWhen || null,
+        },
+      },
+    }),
+  },
+  CREATE_BROADCAST_NOTIFICATION: {
+    id: 'CREATE_BROADCAST_NOTIFICATION',
+    module: 'notifications',
+    label: 'Create Broadcast',
+    allowedRoles: ['state_secretary', 'state'],
+    requiredEntities: [],
+    requiresConfirmation: false,
+    run: ({ entities }) => ({
+      notification: {
+        view: 'broadcast',
+        prefill: {
+          title: entities.broadcastTitle || '',
+          category: entities.broadcastCategory || 'announcement',
+          targetRoles: entities.broadcastTargets || [],
+          module: entities.broadcastModule || 'general',
+        },
+      },
+    }),
+  },
+  MARK_ALL_NOTIFICATIONS_READ: {
+    id: 'MARK_ALL_NOTIFICATIONS_READ',
+    module: 'notifications',
+    label: 'Mark all notifications read',
+    allowedRoles: ['teacher', 'principal', 'crc', 'deo', 'state_secretary', 'pfms', 'parent', 'brc'],
+    requiredEntities: [],
+    requiresConfirmation: false,
+    run: () => ({ notification: { markAllRead: true } }),
+  },
+
   // Parent alerts (state-changing → confirm) ──────────────────────────────
   SEND_PARENT_ALERT: {
     id: 'SEND_PARENT_ALERT',
@@ -247,52 +343,6 @@ export const ACTIONS = {
     requiredEntities: [],
     requiresConfirmation: true,
     run: () => ({ trigger: 'parent alert' }),
-  },
-
-  // Notifications ─────────────────────────────────────────────────────────
-  OPEN_NOTIFICATIONS: {
-    id: 'OPEN_NOTIFICATIONS',
-    module: 'notifications',
-    label: 'Open Notifications',
-    // All authenticated roles may view their own notifications.
-    allowedRoles: ['teacher', 'principal', 'crc', 'deo', 'state_secretary', 'pfms', 'parent'],
-    requiredEntities: [],
-    requiresConfirmation: false,
-    run: () => ({ canvas: { type: 'notifications' } }),
-  },
-  CREATE_REMINDER: {
-    id: 'CREATE_REMINDER',
-    module: 'notifications',
-    label: 'Create Reminder',
-    allowedRoles: ['teacher', 'principal', 'crc', 'deo', 'state_secretary', 'pfms', 'parent'],
-    requiredEntities: [],
-    requiresConfirmation: false,
-    run: () => ({ canvas: { type: 'notifications', view: 'reminder' } }),
-  },
-  CREATE_BROADCAST_NOTIFICATION: {
-    id: 'CREATE_BROADCAST_NOTIFICATION',
-    module: 'notifications',
-    label: 'Create Broadcast Notification',
-    // Only state-tier may broadcast.
-    allowedRoles: ['state_secretary'],
-    requiredEntities: [],
-    requiresConfirmation: false,
-    run: ({ entities }) => ({
-      canvas: {
-        type: 'notifications',
-        view: 'broadcast',
-        prefill: entities?.broadcastPrefill || null,
-      },
-    }),
-  },
-  MARK_ALL_NOTIFICATIONS_READ: {
-    id: 'MARK_ALL_NOTIFICATIONS_READ',
-    module: 'notifications',
-    label: 'Mark All Notifications Read',
-    allowedRoles: ['teacher', 'principal', 'crc', 'deo', 'state_secretary', 'pfms', 'parent'],
-    requiredEntities: [],
-    requiresConfirmation: false,
-    run: () => ({ canvas: { type: 'notifications', op: 'mark_all_read' } }),
   },
 }
 

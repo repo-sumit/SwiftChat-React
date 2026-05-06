@@ -35,7 +35,6 @@ import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { routeIntentSync } from '../globalIntentRouter.js'
-import { routeDataQuery, isQuestionShape } from '../dataQueryRouter.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const CASES_PATH = path.resolve(__dirname, 'qaCases.json')
@@ -95,7 +94,7 @@ function checkAnswerSource(citations, expect) {
 
 // Compare a normalized (responseType, actionId, entities, citations[]) tuple
 // against the expectation. Used by both the local and remote paths.
-function compareTuple({ responseType, actionId, entities, citations, analytics }, expect) {
+function compareTuple({ responseType, actionId, entities, citations }, expect) {
   if (expect.responseType !== responseType) {
     return { ok: false, reason: `responseType expected="${expect.responseType}" got="${responseType}"` }
   }
@@ -118,41 +117,12 @@ function compareTuple({ responseType, actionId, entities, citations, analytics }
     const c = checkAnswerSource(citations, expect)
     if (!c.ok) return c
   }
-  if (responseType === 'analytics' && expect.analyticsCheck) {
-    // Optional: { hasTable: true, includesColumn: 'Avg Score', minRows: 1 }
-    const a = analytics
-    const e = expect.analyticsCheck
-    if (e.hasTable && (!a?.table || !a.table.rows?.length)) {
-      return { ok: false, reason: 'expected analytics.table with rows' }
-    }
-    if (e.includesColumn && !a?.table?.columns?.includes(e.includesColumn)) {
-      return { ok: false, reason: `expected column "${e.includesColumn}" in analytics.table` }
-    }
-    if (e.minRows && (a?.table?.rows?.length || 0) < e.minRows) {
-      return { ok: false, reason: `expected at least ${e.minRows} rows, got ${a?.table?.rows?.length || 0}` }
-    }
-  }
   return { ok: true }
 }
 
 // ── local resolver ─────────────────────────────────────────────────────────
-// Mirrors handleSend's runtime priority:
-//   - question-shape inputs ("how many", "kitne", "?") → try data first
-//   - else → try action first; data is the fallback when action is unknown
 function runLocal(c) {
-  if (isQuestionShape(c.input)) {
-    const analytics = routeDataQuery({ text: c.input, role: c.role })
-    if (analytics) {
-      return { responseType: 'analytics', actionId: null, entities: {}, citations: [], analytics, raw: null }
-    }
-  }
   const r = routeIntentSync({ text: c.input, role: c.role })
-  if (r.kind === 'unknown' || r.kind === 'module-fallback') {
-    const analytics = routeDataQuery({ text: c.input, role: c.role })
-    if (analytics) {
-      return { responseType: 'analytics', actionId: null, entities: {}, citations: [], analytics, raw: r }
-    }
-  }
   return {
     responseType: localKindToResponseType(r.kind),
     actionId: r.action?.id || (r.pendingAction?.actionId || null),

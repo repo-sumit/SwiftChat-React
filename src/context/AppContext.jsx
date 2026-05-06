@@ -1,12 +1,18 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { USER_PROFILES } from '../data/mockData'
 import * as chatHistory from '../utils/chatHistory'
-import * as notifStore from '../notifications/notificationStore'
-import { NOTIFICATION_TYPES, canRoleBroadcast } from '../notifications/notificationTypes'
-import { matchesNotificationTarget, visibleNotificationsFor, unreadCountFor } from '../notifications/notificationTargeting'
-import { startScheduler, stopScheduler, subscribeScheduler, setSchedulerUser, tickScheduler } from '../notifications/notificationScheduler'
-import { playNotificationSound, unlockAudioOnGesture } from '../notifications/notificationSound'
-import { seedNotificationsOnce } from '../notifications/notificationSeed'
+import {
+  loadAll as loadAllNotifications,
+  addNotification, markRead, markAllRead, dismissNotification as dismissStoredNotification,
+  getNotificationsForUser, unreadCountFor, onNotificationsChange,
+} from '../notifications/notificationStore'
+import { describeUser, userIdFor as notificationUserIdFor } from '../notifications/notificationTargeting'
+import {
+  startScheduler, stopScheduler, updateSchedulerUser, onNotificationsDue, fireImmediateDelivery,
+} from '../notifications/notificationScheduler'
+import { runSeedIfNeeded } from '../notifications/notificationSeed'
+import { playNotificationSound } from '../notifications/notificationSound'
+import { runNotificationAction } from '../notifications/notificationActions'
 
 const AppContext = createContext(null)
 
@@ -63,6 +69,10 @@ function clearSession() {
 // inside React state so subsequent renders read from state, not storage.
 const PERSISTED = loadSession()
 
+// Login-enabled mode: a fresh boot lands on the splash screen. Only a
+// previously-persisted session with a recognised role hydrates straight
+// into the post-login experience.
+
 export function AppProvider({ children }) {
   // Hydrate from localStorage on first render. If a valid persisted session
   // exists with a role, restore everything (including the last screen).
@@ -115,7 +125,6 @@ export function AppProvider({ children }) {
   const activeChat = useMemo(() => {
     if (!activeChatId) return null
     return chatHistory.getChatById(activeChatId)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeChatId, chatTick])
 
   const createChat = useCallback((opts = {}) => {
@@ -191,10 +200,23 @@ export function AppProvider({ children }) {
     saveSession({ screen, stack, role, userProfile, lang, ssoState })
   }, [screen, stack, role, userProfile, lang, ssoState])
 
-  // Unified role setter — also loads matching profile from mock data
+  // Unified role setter — also loads matching profile from mock data.
   const setRole = useCallback((r) => {
     setRoleRaw(r)
     setUserProfile(r ? (USER_PROFILES[r] ?? null) : null)
+  }, [])
+
+  // Switch the active user. Resets the screen back to home so the new role
+  // lands on its own dashboard, and clears any open call/canvas state.
+  const switchRole = useCallback((r) => {
+    if (!r || !USER_PROFILES[r]) return
+    setRoleRaw(r)
+    setUserProfile(USER_PROFILES[r])
+    setStack(['home'])
+    setScreen('home')
+    setCanvasOpen(false)
+    setCanvasContext(null)
+    setCall(null)
   }, [])
 
   const navigate = useCallback((id, replace = false) => {
@@ -220,6 +242,7 @@ export function AppProvider({ children }) {
   }, [])
 
   // Explicit sign-out — the ONLY path that clears the persisted session.
+  // Returns the user to the splash screen so the auth flow runs again.
   const signOut = useCallback(() => {
     signingOut.current = true
     clearSession()
@@ -230,8 +253,6 @@ export function AppProvider({ children }) {
     setCanvasOpen(false)
     setCanvasContext(null)
     setCall(null)
-    setNotificationsOpen(false)
-    setActiveToast(null)
     stopScheduler()
     // Allow the persistence effect to resume for the next session.
     setTimeout(() => { signingOut.current = false }, 0)
@@ -239,192 +260,229 @@ export function AppProvider({ children }) {
 
   const openCall    = useCallback((chatId, botName) => setCall({ chatId, botName, active: true }), [])
   const endCall     = useCallback(() => setCall(null), [])
-  // Intercept the special 'notifications' canvas type so NLP/action-registry
-  // payloads (`{ type: 'notifications', view? }`) route to the global
-  // notifications panel instead of CanvasPanel.
-  const openCanvas  = useCallback((ctx = null) => {
-    if (ctx && ctx.type === 'notifications') {
-      setNotificationsOpen(true)
-      // The notifications panel manages its own internal view state; if
-      // future NLP wants a deep-link, surface it on window for the panel
-      // to pick up. For now we just open the list.
-      if (ctx.op === 'mark_all_read' && typeof window !== 'undefined') {
-        try { window.dispatchEvent(new CustomEvent('swiftchat:notifications:markAllRead')) } catch { /* noop */ }
-      }
-      if (ctx.view && typeof window !== 'undefined') {
-        try { window.dispatchEvent(new CustomEvent('swiftchat:notifications:view', { detail: { view: ctx.view, prefill: ctx.prefill } })) } catch { /* noop */ }
-      }
-      return
-    }
-    setCanvasContext(ctx); setCanvasOpen(true)
-  }, [])
+  const openCanvas  = useCallback((ctx = null) => { setCanvasContext(ctx); setCanvasOpen(true) }, [])
   const closeCanvas = useCallback(() => setCanvasOpen(false), [])
   const updateCanvas = useCallback((patch) => setCanvasContext(c => ({ ...(c || {}), ...patch })), [])
 
   // ── Notifications ──────────────────────────────────────────────────────────
-  // Self-contained slice: one tick counter forces consumers to re-derive
-  // their lists from localStorage. Keeps the store as the single source of
-  // truth and avoids splitting state across React + storage.
-  const [notifTick, setNotifTick]     = useState(0)
-  const bumpNotifs                    = useCallback(() => setNotifTick(t => t + 1), [])
-  const [notificationsOpen, setNotificationsOpen] = useState(false)
-  const [activeToast, setActiveToast]             = useState(null) // { notification }
-  const toastClearTimer = useRef(null)
-  // Bell shake / urgency pulse trigger.
-  const [bellShake, setBellShake]     = useState(0)
+  // Seed-once on first ever boot.
+  useEffect(() => { runSeedIfNeeded() }, [])
 
-  // Seed once on first load.
-  useEffect(() => { seedNotificationsOnce() }, [])
+  // Effective user descriptor for targeting/scheduler. Recomputed when the
+  // active role/profile changes.
+  const notificationUser = useMemo(() => describeUser(role, userProfile), [role, userProfile])
+  const notificationUserId = useMemo(() => notificationUserIdFor(notificationUser), [notificationUser])
 
-  // Build a stable user object for targeting/scheduling.
-  const notifUser = useMemo(() => {
-    if (!role) return null
-    return { id: userId, role }
-  }, [role, userId])
+  const [notifications, setNotifications] = useState(() =>
+    notificationUser ? getNotificationsForUser(notificationUser) : [],
+  )
+  const [unreadNotifications, setUnreadNotifications] = useState(() =>
+    notificationUser ? unreadCountFor(notificationUser) : 0,
+  )
+  const [recentNotificationToast, setRecentNotificationToast] = useState(null)
+  const [notificationsBuzzKey, setNotificationsBuzzKey]       = useState(0)
+  const [notificationsBuzzUrgent, setNotificationsBuzzUrgent] = useState(false)
+  // True while a reminder is unacknowledged — the bell shakes continuously
+  // until the user opens the toast/bell. Cleared when:
+  //   • toast is clicked or dismissed
+  //   • bell is clicked (notifications canvas opens)
+  //   • the reminder is marked read or dismissed from the list
+  const [notificationsRinging, setNotificationsRinging] = useState(false)
+  // `notificationView` controls which view the canvas opens in: 'list' |
+  // 'reminder' | 'broadcast'.
+  const [notificationView, setNotificationView]       = useState('list')
+  const [broadcastPrefill, setBroadcastPrefill]       = useState(null)
+  // Bumped when a notification action wants the chat layer to fire a trigger.
+  // SuperHomePage subscribes via the queue ref below.
+  const chatTriggerQueue = useRef([])
+  const [chatTriggerTick, setChatTriggerTick] = useState(0)
 
-  // Drive the scheduler — re-bind whenever the user changes, tear down
-  // on sign-out.
+  const refreshNotifications = useCallback(() => {
+    if (!notificationUser) {
+      setNotifications([])
+      setUnreadNotifications(0)
+      return
+    }
+    setNotifications(getNotificationsForUser(notificationUser))
+    setUnreadNotifications(unreadCountFor(notificationUser))
+  }, [notificationUser])
+
+  // Re-read the list whenever the store mutates or the user switches.
   useEffect(() => {
-    if (!notifUser) { stopScheduler(); return }
-    setSchedulerUser(notifUser)
-    const unsub = subscribeScheduler((n) => {
-      // The scheduler only emits items the current user is targeted by.
-      if (!matchesNotificationTarget(n, notifUser)) return
-      bumpNotifs()
-      setBellShake(s => s + 1)
-      setActiveToast({ notification: n })
-      playNotificationSound({ urgent: n.priority === 'urgent' })
-      // Auto-dismiss the toast after 4s (urgent stays a touch longer).
-      clearTimeout(toastClearTimer.current)
-      toastClearTimer.current = setTimeout(
-        () => setActiveToast(null),
-        n.priority === 'urgent' ? 6500 : 4000,
-      )
+    refreshNotifications()
+    return onNotificationsChange(refreshNotifications)
+  }, [refreshNotifications])
+
+  // Run the scheduler tied to the current user.
+  useEffect(() => {
+    if (!notificationUser) return undefined
+    const stop = startScheduler(notificationUser)
+    return () => { stop?.(); stopScheduler() }
+  }, [notificationUser])
+
+  useEffect(() => { updateSchedulerUser(notificationUser) }, [notificationUser])
+
+  // React to "due" events — toast, sound, animate bell. Reminders always
+  // ring with the urgent variant so a 1:20 PM nudge feels alarm-like even
+  // when the priority is "normal".
+  useEffect(() => {
+    const off = onNotificationsDue((notification) => {
+      if (!notification) return
+      // Refresh local list immediately so the badge updates without waiting
+      // for the next storage event.
+      refreshNotifications()
+      const isReminder = notification.type === 'reminder'
+      const urgent = isReminder || notification.priority === 'urgent' || notification.priority === 'high'
+      setRecentNotificationToast(notification)
+      setNotificationsBuzzKey(k => k + 1)
+      setNotificationsBuzzUrgent(urgent)
+      // Reminders ring until the user clicks the bell / toast — they
+      // shouldn't quietly disappear. Other priorities buzz once.
+      if (isReminder) setNotificationsRinging(true)
+      playNotificationSound({ urgent })
     })
-    const stop = startScheduler({ user: notifUser, intervalMs: 30000 })
-    return () => { unsub(); stop() }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [notifUser?.id, notifUser?.role])
+    return off
+  }, [refreshNotifications])
 
-  // Re-derive list / count whenever notifications change.
-  const notifications = useMemo(() => {
-    const all = notifStore.loadAllNotifications()
-    return notifStore.sortNotifications(all)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [notifTick])
-
-  const visibleNotifications = useMemo(() => {
-    if (!notifUser) return []
-    return visibleNotificationsFor(notifications, notifUser)
-  }, [notifications, notifUser])
-
-  const unreadNotifications = useMemo(() => {
-    if (!notifUser) return 0
-    return unreadCountFor(notifications, notifUser)
-  }, [notifications, notifUser])
-
-  const openNotificationsCanvas = useCallback(() => {
-    // Any user gesture in this app is fine to "unlock" audio.
-    unlockAudioOnGesture()
-    setNotificationsOpen(true)
+  const dismissNotificationToast = useCallback(() => {
+    setRecentNotificationToast(null)
+    setNotificationsRinging(false)
   }, [])
 
-  const closeNotificationsCanvas = useCallback(() => setNotificationsOpen(false), [])
-  const dismissActiveToast       = useCallback(() => setActiveToast(null), [])
+  const acknowledgeReminder = useCallback(() => {
+    setNotificationsRinging(false)
+  }, [])
 
-  const addNotification = useCallback((partial) => {
-    const n = notifStore.addNotification(partial)
-    bumpNotifs()
-    // If due immediately, run a scheduler tick so the toast/sound fires.
-    tickScheduler()
-    return n
-  }, [bumpNotifs])
+  const isUnreadFor = useCallback((notification) => {
+    if (!notification || !notificationUserId) return false
+    return !(notification.readBy || []).includes(notificationUserId)
+  }, [notificationUserId])
 
   const markNotificationRead = useCallback((id) => {
-    if (!userId) return
-    notifStore.markRead(id, userId)
-    bumpNotifs()
-  }, [userId, bumpNotifs])
+    if (!notificationUserId) return
+    markRead(id, notificationUserId)
+    refreshNotifications()
+  }, [notificationUserId, refreshNotifications])
 
   const markAllNotificationsRead = useCallback(() => {
-    if (!notifUser) return 0
-    const n = notifStore.markAllRead(userId, (item) => matchesNotificationTarget(item, notifUser))
-    bumpNotifs()
-    return n
-  }, [userId, notifUser, bumpNotifs])
+    if (!notificationUser) return
+    markAllRead(notificationUserId)
+    refreshNotifications()
+  }, [notificationUser, notificationUserId, refreshNotifications])
 
-  const dismissNotification = useCallback((id) => {
-    if (!userId) return
-    notifStore.dismiss(id, userId)
-    bumpNotifs()
-  }, [userId, bumpNotifs])
+  const dismissNotificationCb = useCallback((id) => {
+    if (!notificationUserId) return
+    dismissStoredNotification(id, notificationUserId)
+    refreshNotifications()
+  }, [notificationUserId, refreshNotifications])
 
-  const createBroadcastNotification = useCallback((partial) => {
-    if (!canRoleBroadcast(role)) return null
-    const n = notifStore.addNotification({
-      ...partial,
-      type: NOTIFICATION_TYPES.BROADCAST,
-      createdBy: userId,
-      createdByRole: role,
+  // openNotificationsCanvas — opens the right-side notifications canvas.
+  // optional `view` overrides the default list view; optional
+  // `broadcastPrefill` / `reminderPrefill` seed the matching form.
+  const openNotificationsCanvas = useCallback((opts = {}) => {
+    if (opts.broadcastPrefill) setBroadcastPrefill(opts.broadcastPrefill)
+    setNotificationView(opts.view || 'list')
+    setCanvasContext({
+      type: 'notifications',
+      view: opts.view || 'list',
+      broadcastPrefill: opts.broadcastPrefill || null,
+      reminderPrefill: opts.reminderPrefill || null,
     })
-    bumpNotifs()
-    tickScheduler()
-    return n
-  }, [role, userId, bumpNotifs])
+    setCanvasOpen(true)
+    // Opening the bell counts as acknowledging any ringing reminder.
+    setNotificationsRinging(false)
+  }, [])
 
-  const createReminder = useCallback((partial) => {
-    if (!role || !userId) return null
-    const n = notifStore.addNotification({
-      ...partial,
-      type: NOTIFICATION_TYPES.REMINDER,
-      createdBy: userId,
-      createdByRole: role,
-      targetUserIds: [userId],
-      targetRoles: [],
-    })
-    bumpNotifs()
-    tickScheduler()
-    return n
-  }, [role, userId, bumpNotifs])
+  // ── Trigger plumbing for notification actions that need chat triggers ─────
+  // SuperHomePage drains the queue via `useNotificationChatTriggers()` below.
+  const queueChatTrigger = useCallback((trigger) => {
+    if (!trigger) return
+    chatTriggerQueue.current.push(trigger)
+    setChatTriggerTick(t => t + 1)
+  }, [])
 
-  // Resolve a notification action (e.g. "Open DigiVritti") into an open
-  // canvas. Returns true if handled, false otherwise so the caller can
-  // fall back to a toast.
+  const consumeChatTrigger = useCallback(() => {
+    const q = chatTriggerQueue.current
+    if (!q.length) return null
+    const next = q.shift()
+    return next
+  }, [])
+
+  // Window-level bridge so notificationActions.js (which doesn't import
+  // AppContext) can also queue triggers.
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+    const handler = (e) => queueChatTrigger(e.detail)
+    window.addEventListener('swiftchat:chat:trigger', handler)
+    return () => window.removeEventListener('swiftchat:chat:trigger', handler)
+  }, [queueChatTrigger])
+
   const triggerNotificationAction = useCallback((notification) => {
-    if (!notification?.action) return false
-    const a = notification.action
-    // Direct canvas payloads pass through unchanged (caller built one).
-    if (a.canvas) {
-      openCanvas(a.canvas)
-      return true
+    if (!notification) return false
+    if (notificationUserId && !(notification.readBy || []).includes(notificationUserId)) {
+      markRead(notification.id, notificationUserId)
+      refreshNotifications()
     }
-    const map = {
-      OPEN_DIGIVRITTI_HOME:        { type: 'digivritti', role },
-      OPEN_NAMO_LAKSHMI:           { type: 'digivritti', scheme: 'namo_lakshmi', role },
-      OPEN_NAMO_SARASWATI:         { type: 'digivritti', scheme: 'namo_saraswati', role },
-      OPEN_APPLICATION_LIST:       { type: 'digivritti', view: 'list', role },
-      OPEN_REJECTED_APPLICATIONS:  { type: 'digivritti', view: 'list', filter: 'rejected', role },
-      OPEN_PAYMENT_QUEUE:          { type: 'digivritti', view: 'payment-queue', filter: 'pending', role },
-      OPEN_CRC_PENDING_REVIEWS:    { type: 'digivritti', view: 'review', role },
-      OPEN_XAMTA_SCAN:             { type: 'digivritti', view: 'analytics', role },
-      OPEN_MARK_ATTENDANCE:        { type: 'attendance', classId: '6-B', role },
-      OPEN_STATE_DASHBOARD:        { type: 'dashboard', scope: 'state', role },
-      OPEN_DISTRICT_DASHBOARD:     { type: 'dashboard', scope: 'district', role },
-      OPEN_SCHOOL_DASHBOARD:       { type: 'dashboard', scope: 'school', role },
-      OPEN_REPORT_CARD:            { type: 'report', role },
-      OPEN_DIGIVRITTI_AI:          { type: 'digivritti', view: 'analytics', role },
-      OPEN_NOTIFICATIONS:          { type: 'notifications' },
+    setRecentNotificationToast(null)
+    return runNotificationAction(notification.action, {
+      openCanvas: (ctx) => { setCanvasContext(ctx); setCanvasOpen(true) },
+      runChatTrigger: queueChatTrigger,
+    })
+  }, [notificationUserId, refreshNotifications, queueChatTrigger])
+
+  // ── Permissions helpers (mirrored on roleConfig) ──────────────────────────
+  const canCreateBroadcast = role === 'state_secretary' || role === 'state'
+  const canCreateReminder  = !!role
+  const canViewNotifications = !!role
+
+  // ── Authoring helpers ─────────────────────────────────────────────────────
+  const createReminder = useCallback((input) => {
+    if (!notificationUser) return null
+    const created = addNotification({
+      ...input,
+      type: 'reminder',
+      category: input.category || 'reminder',
+      priority: input.priority || 'normal',
+      createdBy: notificationUser.id,
+      createdByRole: notificationUser.role,
+      targetRoles: [],
+      targetUserIds: [notificationUser.id],
+    }, { type: 'reminder' })
+    refreshNotifications()
+    // If due immediately, fire the toast/buzz cycle once.
+    if (!created.scheduledAt || Date.parse(created.scheduledAt) <= Date.now()) {
+      fireImmediateDelivery(created, notificationUser)
     }
-    const target = map[a.type]
-    if (!target) return false
-    openCanvas(target)
-    return true
-  }, [openCanvas, role])
+    return created
+  }, [notificationUser, refreshNotifications])
+
+  const createBroadcastNotification = useCallback((input) => {
+    if (!canCreateBroadcast || !notificationUser) return null
+    const created = addNotification({
+      ...input,
+      type: 'broadcast',
+      createdBy: notificationUser.id,
+      createdByRole: notificationUser.role,
+      targetRoles: input.targetRoles && input.targetRoles.length ? input.targetRoles : ['all'],
+    }, { type: 'broadcast' })
+    refreshNotifications()
+    if (!created.scheduledAt || Date.parse(created.scheduledAt) <= Date.now()) {
+      fireImmediateDelivery(created, notificationUser)
+    }
+    return created
+  }, [canCreateBroadcast, notificationUser, refreshNotifications])
+
+  const addNotificationCb = useCallback((input) => {
+    const created = addNotification(input)
+    refreshNotifications()
+    fireImmediateDelivery(created, notificationUser)
+    return created
+  }, [notificationUser, refreshNotifications])
 
   return (
     <AppContext.Provider value={{
       screen, navigate, goBack,
-      stack, role, setRole,
+      stack, role, setRole, switchRole,
       userProfile, setUserProfile,
       lang, setLang,
       toast, showToast,
@@ -438,13 +496,24 @@ export function AppProvider({ children }) {
       chats: userChats, activeChatId, activeChat,
       createChat, switchChat, appendMessage, setChatMessages,
       updateChatCanvas, updateChatToolState, renameChat, deleteChat,
-      // Notifications — per-user view of a global localStorage store.
-      notifications, visibleNotifications, unreadNotifications,
-      notificationsOpen, openNotificationsCanvas, closeNotificationsCanvas,
-      activeToast, dismissActiveToast, bellShake,
-      addNotification, markNotificationRead, markAllNotificationsRead,
-      dismissNotification, createBroadcastNotification, createReminder,
+      // Notifications
+      notifications, unreadNotifications,
+      isUnreadFor,
+      markNotificationRead, markAllNotificationsRead,
+      dismissNotification: dismissNotificationCb,
+      addNotification: addNotificationCb,
+      createReminder, createBroadcastNotification,
       triggerNotificationAction,
+      openNotificationsCanvas,
+      dismissNotificationToast,
+      recentNotificationToast,
+      notificationsBuzzKey, notificationsBuzzUrgent,
+      notificationsRinging, acknowledgeReminder,
+      notificationView, broadcastPrefill,
+      canCreateBroadcast, canCreateReminder, canViewNotifications,
+      // Chat-trigger plumbing (used by notification actions)
+      consumeChatTrigger,
+      chatTriggerTick,
     }}>
       {children}
     </AppContext.Provider>

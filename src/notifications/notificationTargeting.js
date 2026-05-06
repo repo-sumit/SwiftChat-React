@@ -1,60 +1,65 @@
-// Targeting logic — does this notification apply to this user?
+// Targeting rules for notifications.
 //
-// Pure function. Used by the canvas list filter, scheduler, toast trigger,
-// and unread-count derivation.
+// matchesNotificationTarget(notification, user) → boolean
+//
+// Rules (any-of):
+//   - targetUserIds includes user.id
+//   - targetRoles includes 'all'
+//   - targetRoles includes 'not_state' AND user is not a state user
+//   - targetRoles includes user.role
+//   - targetRoles includes 'state' AND user is a state user
+//   - targetRoles includes 'teacher' AND user.role === 'teacher'
+//   - …etc. Role aliases (e.g. state ↔ state_secretary) are normalised.
 
-import { STATE_ROLES, normaliseRole } from './notificationTypes.js'
+import { STATE_ROLES } from './notificationTypes.js'
 
-/**
- * @param {Notification} notification
- * @param {{ id?: string, role?: string }} user
- */
-export function matchesNotificationTarget(notification, user) {
-  if (!notification || !user) return false
-  const role = normaliseRole(user.role)
-  const userId = user.id
+function isStateRole(role) {
+  return STATE_ROLES.has(role)
+}
 
-  const targetUserIds = notification.targetUserIds || []
-  const targetRoles   = notification.targetRoles   || []
+export function userIdFor(user) {
+  if (!user) return null
+  return user.id || user.employeeId || user.stateId || user.role || null
+}
 
-  // 1) Direct user-id targeting wins.
-  if (userId && targetUserIds.includes(userId)) return true
-
-  // 2) "all" matches anybody logged in.
-  if (targetRoles.includes('all')) return true
-
-  // 3) "not_state" matches everyone except state-tier users.
-  if (targetRoles.includes('not_state') && !STATE_ROLES.includes(role)) return true
-
-  // 4) Direct role match — including the 'state' alias for state_secretary.
-  if (role && targetRoles.includes(role)) return true
-  if (STATE_ROLES.includes(role) && targetRoles.includes('state')) return true
-
+// True when the given role token (from targetRoles) admits this user.
+function roleTokenMatches(token, user) {
+  if (!token || !user?.role) return false
+  if (token === 'all') return true
+  if (token === 'not_state') return !isStateRole(user.role)
+  if (token === 'state') return isStateRole(user.role)
+  // Direct role match (teacher, principal, crc, brc, deo, pfms, parent,
+  // state_secretary).
+  if (token === user.role) return true
+  // Common aliasing — e.g. 'state' broadcast should also reach
+  // `state_secretary` profile, and `state_secretary` should match a
+  // 'state' targeting token.
+  if (token === 'state_secretary' && user.role === 'state_secretary') return true
   return false
 }
 
-/**
- * Filter a notification list down to what's visible to this user, taking
- * dismiss state and (optionally) un-delivered scheduled items into account.
- */
-export function visibleNotificationsFor(list, user, { includePending = false } = {}) {
-  if (!Array.isArray(list) || !user) return []
-  const now = Date.now()
-  return list.filter(n => {
-    if (!matchesNotificationTarget(n, user)) return false
-    if (user.id && (n.dismissedBy || []).includes(user.id)) return false
-    if (!includePending) {
-      // Hide future-scheduled notifications until they're due.
-      if (n.scheduledAt && new Date(n.scheduledAt).getTime() > now && !n.deliveredAt) {
-        return false
-      }
-    }
+export function matchesNotificationTarget(notification, user) {
+  if (!notification || !user) return false
+  const uid = userIdFor(user)
+  if (uid && Array.isArray(notification.targetUserIds) && notification.targetUserIds.includes(uid)) {
     return true
-  })
+  }
+  const roles = notification.targetRoles || []
+  for (const token of roles) {
+    if (roleTokenMatches(token, user)) return true
+  }
+  return false
 }
 
-export function unreadCountFor(list, user) {
-  return visibleNotificationsFor(list, user)
-    .filter(n => !user.id || !(n.readBy || []).includes(user.id))
-    .length
+// Convenience: build a user descriptor from the AppContext role+profile.
+// Used by notificationStore + scheduler to evaluate targeting consistently.
+export function describeUser(role, profile) {
+  if (!role) return null
+  return {
+    id: userIdFor({ ...(profile || {}), role }),
+    role,
+    name: profile?.name,
+    employeeId: profile?.employeeId,
+    stateId: profile?.stateId,
+  }
 }

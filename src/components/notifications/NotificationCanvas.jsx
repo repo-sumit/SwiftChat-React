@@ -1,167 +1,171 @@
-import React, { useEffect, useMemo, useState } from 'react'
-import { X, Plus, Megaphone, CheckCheck } from 'lucide-react'
+import React, { useMemo, useState, useEffect } from 'react'
+import { ArrowLeft, Plus, Megaphone, CheckCheck } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
-import { canRoleBroadcast } from '../../notifications/notificationTypes'
-import NotificationFilters from './NotificationFilters'
+import NotificationFilters, { NOTIFICATION_TABS } from './NotificationFilters'
 import NotificationList from './NotificationList'
 import CreateReminderForm from './CreateReminderForm'
 import CreateBroadcastForm from './CreateBroadcastForm'
 
-// Renders the notifications panel — full-screen on mobile, right-side panel
-// on desktop. Mounted globally at app root so any page can open it via
-// `openNotificationsCanvas()`.
-export default function NotificationCanvas() {
+function filterFor(tab, notifications, isUnreadFn) {
+  switch (tab) {
+    case 'unread':     return notifications.filter(n => isUnreadFn(n))
+    case 'broadcasts': return notifications.filter(n => n.type === 'broadcast')
+    case 'reminders':  return notifications.filter(n => n.type === 'reminder')
+    case 'system':     return notifications.filter(n => n.type === 'system')
+    case 'all':
+    default:           return notifications
+  }
+}
+
+export default function NotificationCanvas({ initialView = 'list', initialBroadcastPrefill = null, initialReminderPrefill = null, onClose }) {
   const {
-    notificationsOpen, closeNotificationsCanvas,
-    visibleNotifications, userId, role,
-    markAllNotificationsRead,
+    notifications, isUnreadFor, markNotificationRead, markAllNotificationsRead,
+    dismissNotification, triggerNotificationAction,
+    canCreateBroadcast, role,
   } = useApp()
+
+  // 'list' | 'reminder' | 'broadcast'
+  const [view, setView] = useState(initialView)
+  const [broadcastPrefill, setBroadcastPrefill] = useState(initialBroadcastPrefill)
+  const [reminderPrefill, setReminderPrefill]   = useState(initialReminderPrefill)
   const [tab, setTab]   = useState('all')
-  const [view, setView] = useState('list') // 'list' | 'reminder' | 'broadcast'
-  const [prefill, setPrefill] = useState(null)
 
-  // Listen for NLP-driven deep-link / op events.
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    const onView = (e) => {
-      const v = e?.detail?.view
-      if (v === 'reminder' || v === 'broadcast') setView(v)
-      if (e?.detail?.prefill) setPrefill(e.detail.prefill)
-    }
-    const onMarkAll = () => markAllNotificationsRead()
-    window.addEventListener('swiftchat:notifications:view', onView)
-    window.addEventListener('swiftchat:notifications:markAllRead', onMarkAll)
-    return () => {
-      window.removeEventListener('swiftchat:notifications:view', onView)
-      window.removeEventListener('swiftchat:notifications:markAllRead', onMarkAll)
-    }
-  }, [markAllNotificationsRead])
+  useEffect(() => { setView(initialView) }, [initialView])
+  useEffect(() => { if (initialBroadcastPrefill) setBroadcastPrefill(initialBroadcastPrefill) }, [initialBroadcastPrefill])
+  useEffect(() => { if (initialReminderPrefill) setReminderPrefill(initialReminderPrefill) }, [initialReminderPrefill])
 
-  // Reset internal view when panel closes.
-  useEffect(() => {
-    if (!notificationsOpen) {
-      setView('list')
-      setPrefill(null)
-      setTab('all')
-    }
-  }, [notificationsOpen])
+  const counts = useMemo(() => ({
+    all:        notifications.length,
+    unread:     notifications.filter(n => isUnreadFor(n)).length,
+    broadcasts: notifications.filter(n => n.type === 'broadcast').length,
+    reminders:  notifications.filter(n => n.type === 'reminder').length,
+    system:     notifications.filter(n => n.type === 'system').length,
+  }), [notifications, isUnreadFor])
 
-  const filtered = useMemo(() => {
-    const base = visibleNotifications || []
-    switch (tab) {
-      case 'unread':
-        return base.filter(n => !userId || !(n.readBy || []).includes(userId))
-      case 'broadcast':
-        return base.filter(n => n.type === 'broadcast')
-      case 'reminder':
-        return base.filter(n => n.type === 'reminder')
-      case 'system':
-        return base.filter(n => n.type === 'system')
-      default:
-        return base
-    }
-  }, [visibleNotifications, tab, userId])
+  const visible = useMemo(() => filterFor(tab, notifications, isUnreadFor),
+    [tab, notifications, isUnreadFor])
 
-  const counts = useMemo(() => {
-    const c = { all: 0, unread: 0, broadcast: 0, reminder: 0, system: 0 }
-    for (const n of (visibleNotifications || [])) {
-      c.all++
-      if (!userId || !(n.readBy || []).includes(userId)) c.unread++
-      if (n.type in c) c[n.type]++
-    }
-    return c
-  }, [visibleNotifications, userId])
+  const showState = canCreateBroadcast
 
-  if (!notificationsOpen) return null
+  // ── Header bar shared across views ─────────────────────────────────────────
+  const headerTitle =
+    view === 'reminder' ? 'Add Reminder'
+    : view === 'broadcast' ? 'Create Broadcast'
+    : 'Notifications'
 
-  const showBroadcastBtn = canRoleBroadcast(role)
+  const onBack = () => {
+    if (view !== 'list') setView('list')
+    else onClose?.()
+  }
 
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/30 z-[60]"
-        onClick={closeNotificationsCanvas}
-      />
-
-      {/* Panel — full-width on mobile, right-side on desktop */}
-      <div className="absolute inset-y-0 right-0 z-[70] flex flex-col bg-white animate-canvas-slide overflow-hidden border-l border-bdr-light shadow-canvas
-                      w-full md:w-[60%] lg:w-[480px] xl:w-[520px] max-w-full">
-        {view === 'list' && (
-          <>
-            {/* Header */}
-            <div className="h-14 flex items-center gap-2 px-3 border-b border-bdr-light flex-shrink-0 bg-white">
-              <button
-                onClick={closeNotificationsCanvas}
-                className="w-10 h-10 flex items-center justify-center rounded-full text-txt-secondary active:bg-surface-secondary"
-                aria-label="Close"
-              >
-                <X size={20} />
-              </button>
-              <div className="flex-1 min-w-0">
-                <div className="text-[15px] font-bold text-txt-primary truncate">Notifications</div>
-                <div className="text-[11px] text-txt-secondary">
-                  {counts.unread > 0 ? `${counts.unread} unread` : 'You\'re all caught up'}
-                </div>
-              </div>
-              {counts.unread > 0 && (
-                <button
-                  onClick={markAllNotificationsRead}
-                  className="px-2.5 py-1.5 rounded-full text-[11px] font-semibold text-primary active:bg-primary-light flex items-center gap-1"
-                  title="Mark all as read"
-                >
-                  <CheckCheck size={14} />
-                  Mark all read
-                </button>
-              )}
-            </div>
-
-            {/* Tabs */}
-            <NotificationFilters active={tab} onChange={setTab} counts={counts} />
-
-            {/* List */}
-            <div className="flex-1 overflow-y-auto min-h-0 bg-white">
-              <NotificationList items={filtered} />
-            </div>
-
-            {/* Footer actions */}
-            <div className="flex-shrink-0 border-t border-bdr-light px-3 py-2.5 bg-white flex items-center gap-2">
-              <button
-                onClick={() => setView('reminder')}
-                className="flex-1 px-3 py-2.5 rounded-full bg-primary text-white text-[12.5px] font-bold active:bg-primary-dark flex items-center justify-center gap-1.5"
-              >
-                <Plus size={15} />
-                Add Reminder
-              </button>
-              {showBroadcastBtn && (
-                <button
-                  onClick={() => setView('broadcast')}
-                  className="flex-1 px-3 py-2.5 rounded-full bg-white border-[1.5px] border-primary text-primary text-[12.5px] font-bold active:bg-primary-light flex items-center justify-center gap-1.5"
-                >
-                  <Megaphone size={15} />
-                  Create Broadcast
-                </button>
-              )}
-            </div>
-          </>
-        )}
-
-        {view === 'reminder' && (
-          <CreateReminderForm
-            onBack={() => setView('list')}
-            onDone={() => { setView('list'); setPrefill(null) }}
-            prefill={prefill || {}}
-          />
-        )}
-
-        {view === 'broadcast' && showBroadcastBtn && (
-          <CreateBroadcastForm
-            onBack={() => setView('list')}
-            onDone={() => { setView('list'); setPrefill(null) }}
-            prefill={prefill || {}}
-          />
+    <div className="flex flex-col h-full bg-white min-h-0">
+      <div className="h-14 flex items-center gap-2 px-3 border-b border-bdr-light flex-shrink-0 bg-white">
+        <button
+          onClick={onBack}
+          className="w-10 h-10 flex items-center justify-center rounded-full text-txt-secondary active:bg-surface-secondary transition-colors flex-shrink-0"
+        >
+          <ArrowLeft size={20} />
+        </button>
+        <div className="flex-1 min-w-0">
+          <div className="text-[15px] font-bold text-txt-primary truncate">{headerTitle}</div>
+          <div className="text-[11px] text-txt-secondary truncate">
+            {role ? `${role.replace(/_/g, ' ')} · SwiftChat` : 'SwiftChat'}
+          </div>
+        </div>
+        {view === 'list' && counts.unread > 0 && (
+          <button
+            onClick={() => markAllNotificationsRead()}
+            className="text-[11.5px] font-semibold text-primary hover:underline flex items-center gap-1 px-2"
+          >
+            <CheckCheck size={14} /> Mark all read
+          </button>
         )}
       </div>
-    </>
+
+      {view === 'list' && (
+        <>
+          <NotificationFilters
+            active={tab}
+            counts={counts}
+            onChange={setTab}
+          />
+
+          <div className="flex-1 overflow-y-auto min-h-0">
+            <NotificationList
+              notifications={visible}
+              isUnread={isUnreadFor}
+              onMarkRead={(n) => markNotificationRead(n.id)}
+              onDismiss={(n) => dismissNotification(n.id)}
+              onAction={(n) => {
+                // triggerNotificationAction returns true when the action
+                // handled itself (opened a canvas or queued a chat trigger).
+                // In that case the panel will swap to the destination canvas
+                // on its own — calling onClose() right after would tear the
+                // freshly-opened canvas back down. Only fall back to closing
+                // when nothing was handled (e.g. an action with no type).
+                const handled = triggerNotificationAction(n)
+                if (!handled) onClose?.()
+              }}
+              emptyTitle={
+                tab === 'unread' ? 'You’re all caught up'
+                : tab === 'broadcasts' ? 'No broadcasts yet'
+                : tab === 'reminders' ? 'No reminders yet'
+                : tab === 'system' ? 'No system updates'
+                : 'No notifications'
+              }
+              emptySubtitle={
+                tab === 'reminders'
+                  ? 'Tap “Add Reminder” to set a personal nudge.'
+                  : 'You’ll see new items here as they arrive.'
+              }
+            />
+          </div>
+
+          <div className="flex-shrink-0 p-3 border-t border-bdr-light bg-white flex flex-col sm:flex-row gap-2">
+            <button
+              onClick={() => setView('reminder')}
+              className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-full bg-primary text-white text-[13px] font-semibold hover:bg-primary-dark"
+            >
+              <Plus size={14} /> Add Reminder
+            </button>
+            {showState && (
+              <button
+                onClick={() => { setBroadcastPrefill(null); setView('broadcast') }}
+                className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-full border border-primary text-primary text-[13px] font-semibold hover:bg-primary-light"
+              >
+                <Megaphone size={14} /> Create Broadcast
+              </button>
+            )}
+          </div>
+        </>
+      )}
+
+      {view === 'reminder' && (
+        <div className="flex-1 overflow-y-auto min-h-0">
+          <CreateReminderForm
+            prefill={reminderPrefill || {}}
+            onClose={() => { setReminderPrefill(null); setView('list') }}
+          />
+        </div>
+      )}
+
+      {view === 'broadcast' && showState && (
+        <div className="flex-1 overflow-y-auto min-h-0">
+          <CreateBroadcastForm
+            prefill={broadcastPrefill || {}}
+            onClose={() => { setBroadcastPrefill(null); setView('list') }}
+          />
+        </div>
+      )}
+
+      {view === 'broadcast' && !showState && (
+        <div className="px-6 py-12 text-center text-txt-secondary text-[13px]">
+          Only the State user can create broadcast notifications.
+        </div>
+      )}
+    </div>
   )
 }
+
+export const NOTIFICATION_TABS_REF = NOTIFICATION_TABS

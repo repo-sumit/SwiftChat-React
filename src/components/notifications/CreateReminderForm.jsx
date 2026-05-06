@@ -1,145 +1,138 @@
-import React, { useState } from 'react'
-import { ArrowLeft } from 'lucide-react'
+import React, { useMemo, useState } from 'react'
 import { useApp } from '../../context/AppContext'
-import { NOTIFICATION_PRIORITIES, NOTIFICATION_MODULES } from '../../notifications/notificationTypes'
+import {
+  NOTIFICATION_PRIORITIES, NOTIFICATION_MODULES,
+} from '../../notifications/notificationTypes'
 
-function pad(n) { return String(n).padStart(2, '0') }
-function defaultDate() {
-  const d = new Date(Date.now() + 60 * 60 * 1000) // 1h from now
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-}
-function defaultTime() {
-  const d = new Date(Date.now() + 60 * 60 * 1000)
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}`
+function todayLocalDate() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-export default function CreateReminderForm({ onBack, onDone, prefill = {} }) {
+function nowLocalTime() {
+  const d = new Date(Date.now() + 5 * 60 * 1000)  // default to "5 min from now"
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+export default function CreateReminderForm({ onClose, prefill = {} }) {
   const { createReminder, showToast } = useApp()
-  const [title, setTitle]       = useState(prefill.title || '')
-  const [message, setMessage]   = useState(prefill.message || '')
-  const [date, setDate]         = useState(prefill.date || defaultDate())
-  const [time, setTime]         = useState(prefill.time || defaultTime())
+  const [title, setTitle]     = useState(prefill.title     || '')
+  const [message, setMessage] = useState(prefill.message   || '')
+  const [date, setDate]       = useState(prefill.date      || todayLocalDate())
+  const [time, setTime]       = useState(prefill.time      || nowLocalTime())
   const [priority, setPriority] = useState(prefill.priority || 'normal')
-  const [moduleId, setModuleId] = useState(prefill.module || '')
-  const [error, setError]       = useState('')
+  const [module, setModule]     = useState(prefill.module   || 'general')
+  const [error, setError]     = useState('')
 
-  const submit = (e) => {
-    e?.preventDefault?.()
-    if (!title.trim()) { setError('Title is required'); return }
-    if (!date || !time) { setError('Date and time are required'); return }
-    const scheduledAt = new Date(`${date}T${time}:00`).toISOString()
-    const n = createReminder({
+  const minDate = useMemo(() => todayLocalDate(), [])
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    setError('')
+    if (!title.trim()) { setError('Please enter a reminder title.'); return }
+    if (!date || !time) { setError('Please pick a date and time.'); return }
+    const scheduled = new Date(`${date}T${time}`)
+    if (Number.isNaN(scheduled.getTime())) { setError('Invalid date/time.'); return }
+
+    const result = createReminder({
       title: title.trim(),
       message: message.trim(),
+      scheduledAt: scheduled.toISOString(),
       priority,
-      module: moduleId || null,
-      category: 'General',
-      scheduledAt,
+      module: module === 'general' ? null : module,
+      category: 'reminder',
     })
-    if (!n) { setError('Could not save reminder'); return }
-    showToast('Reminder set', 'ok')
-    onDone?.(n)
+
+    const isFuture = scheduled.getTime() > Date.now() + 1000
+    showToast?.(isFuture ? 'Reminder scheduled' : 'Reminder added', 'ok')
+    onClose?.(result)
   }
 
   return (
-    <div className="flex flex-col h-full bg-white">
-      <div className="h-12 px-2 flex items-center gap-1 flex-shrink-0 border-b border-bdr-light">
-        <button onClick={onBack} className="w-10 h-10 flex items-center justify-center rounded-full text-txt-primary active:bg-surface-secondary">
-          <ArrowLeft size={18} />
-        </button>
-        <div className="text-[14px] font-bold text-txt-primary">Add Reminder</div>
-      </div>
-
-      <form onSubmit={submit} className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3">
-        <Field label="Title">
+    <form onSubmit={handleSubmit} className="px-4 py-4 space-y-3">
+      <Field label="Reminder title">
+        <input
+          autoFocus
+          value={title}
+          onChange={e => setTitle(e.target.value)}
+          placeholder="e.g. Review pending approvals"
+          className="w-full px-3 py-2.5 border border-bdr rounded-xl text-[13px] focus:outline-none focus:border-primary bg-white"
+        />
+      </Field>
+      <Field label="Topic / message (optional)">
+        <textarea
+          value={message}
+          onChange={e => setMessage(e.target.value)}
+          placeholder="Anything you want the reminder note to say"
+          rows={2}
+          className="w-full px-3 py-2.5 border border-bdr rounded-xl text-[13px] focus:outline-none focus:border-primary bg-white resize-none"
+        />
+      </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Date">
           <input
-            type="text"
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-            placeholder="Review Namo Saraswati pending approvals"
-            className="w-full px-3 py-2.5 text-[13.5px] rounded-xl border border-bdr bg-white text-txt-primary outline-none focus:border-primary"
-            autoFocus
+            type="date"
+            value={date}
+            min={minDate}
+            onChange={e => setDate(e.target.value)}
+            className="w-full px-3 py-2.5 border border-bdr rounded-xl text-[13px] focus:outline-none focus:border-primary bg-white"
           />
         </Field>
-
-        <Field label="Message / topic">
-          <textarea
-            rows={3}
-            value={message}
-            onChange={e => setMessage(e.target.value)}
-            placeholder="Add details for this reminder…"
-            className="w-full px-3 py-2.5 text-[13.5px] rounded-xl border border-bdr bg-white text-txt-primary outline-none focus:border-primary resize-none"
+        <Field label="Time">
+          <input
+            type="time"
+            value={time}
+            onChange={e => setTime(e.target.value)}
+            className="w-full px-3 py-2.5 border border-bdr rounded-xl text-[13px] focus:outline-none focus:border-primary bg-white"
           />
         </Field>
-
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Date">
-            <input
-              type="date"
-              value={date}
-              onChange={e => setDate(e.target.value)}
-              className="w-full px-3 py-2.5 text-[13.5px] rounded-xl border border-bdr bg-white text-txt-primary outline-none focus:border-primary"
-            />
-          </Field>
-          <Field label="Time">
-            <input
-              type="time"
-              value={time}
-              onChange={e => setTime(e.target.value)}
-              className="w-full px-3 py-2.5 text-[13.5px] rounded-xl border border-bdr bg-white text-txt-primary outline-none focus:border-primary"
-            />
-          </Field>
-        </div>
-
+      </div>
+      <div className="grid grid-cols-2 gap-3">
         <Field label="Priority">
-          <div className="flex flex-wrap gap-1.5">
-            {NOTIFICATION_PRIORITIES.map(p => (
-              <button
-                type="button"
-                key={p}
-                onClick={() => setPriority(p)}
-                className={`px-3 py-1.5 rounded-full text-[11.5px] font-semibold border-[1.5px] capitalize ${
-                  priority === p
-                    ? 'border-primary bg-primary text-white'
-                    : 'border-bdr text-txt-secondary bg-white'
-                }`}
-              >
-                {p}
-              </button>
-            ))}
-          </div>
-        </Field>
-
-        <Field label="Module (optional)">
           <select
-            value={moduleId}
-            onChange={e => setModuleId(e.target.value)}
-            className="w-full px-3 py-2.5 text-[13.5px] rounded-xl border border-bdr bg-white text-txt-primary outline-none focus:border-primary"
+            value={priority}
+            onChange={e => setPriority(e.target.value)}
+            className="w-full px-3 py-2.5 border border-bdr rounded-xl text-[13px] focus:outline-none focus:border-primary bg-white"
           >
-            <option value="">None</option>
-            {NOTIFICATION_MODULES.map(m => <option key={m} value={m}>{m}</option>)}
+            {NOTIFICATION_PRIORITIES.map(p => (
+              <option key={p} value={p}>{p[0].toUpperCase() + p.slice(1)}</option>
+            ))}
           </select>
         </Field>
+        <Field label="Module (optional)">
+          <select
+            value={module}
+            onChange={e => setModule(e.target.value)}
+            className="w-full px-3 py-2.5 border border-bdr rounded-xl text-[13px] focus:outline-none focus:border-primary bg-white"
+          >
+            {NOTIFICATION_MODULES.map(m => (
+              <option key={m.id} value={m.id}>{m.label}</option>
+            ))}
+          </select>
+        </Field>
+      </div>
 
-        {error && (
-          <div className="text-[12px] text-danger bg-danger-light/40 px-3 py-2 rounded-xl">{error}</div>
-        )}
+      {error && <div className="text-[12px] text-danger">{error}</div>}
 
+      <div className="flex gap-2 pt-2">
+        <button
+          type="button"
+          onClick={() => onClose?.(null)}
+          className="flex-1 py-2.5 rounded-full bg-surface-secondary text-txt-primary text-[13px] font-semibold"
+        >Cancel</button>
         <button
           type="submit"
-          className="mt-2 px-4 py-3 rounded-full bg-primary text-white text-[13.5px] font-bold active:bg-primary-dark transition-colors"
-        >
-          Set reminder
-        </button>
-      </form>
-    </div>
+          className="flex-1 py-2.5 rounded-full bg-primary text-white text-[13px] font-semibold hover:bg-primary-dark"
+        >Save reminder</button>
+      </div>
+    </form>
   )
 }
 
 function Field({ label, children }) {
   return (
-    <label className="flex flex-col gap-1.5">
-      <span className="text-[11px] font-semibold text-txt-secondary uppercase tracking-wide">{label}</span>
+    <label className="block">
+      <div className="text-[11px] font-semibold text-txt-secondary mb-1.5">{label}</div>
       {children}
     </label>
   )

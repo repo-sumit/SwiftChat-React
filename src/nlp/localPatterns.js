@@ -20,21 +20,19 @@ const kw = (...words) => new RegExp(`\\b(${words.join('|')})\\b`, 'i')
 // (e.g. SHOW_ABSENT_STUDENTS) so a phrase like "send parent alert to absent
 // students" routes to the parent-alert action.
 export const PATTERNS = [
-  // ── Notifications / reminders ───────────────────────────────────────────
-  // Broadcast creation (state-only) — must precede the generic "notification"
-  // rule so phrases like "send notification to teachers" route here.
-  { match: /\b(broadcast|send|bhejo|भेजो|create|banao)\b.*\b(notification|announcement|alert|message)\b/i, action: 'CREATE_BROADCAST_NOTIFICATION' },
-  { match: /\b(notification|announcement|alert)\b.*\b(send|bhejo|भेजो|create|banao|broadcast)\b/i, action: 'CREATE_BROADCAST_NOTIFICATION' },
-  // "Mark all read"
-  { match: /\b(mark\s*all\s*read|all\s*notifications?\s*read|sab\s*read|mark\s*as\s*read\s*all)\b/i, action: 'MARK_ALL_NOTIFICATIONS_READ' },
-  // Reminder creation — "remind me", "reminder lagao", "kal 10 baje reminder", etc.
-  { match: /\b(remind\s*me|set\s*(a\s*)?reminder|create\s*(a\s*)?reminder|add\s*(a\s*)?reminder)\b/i, action: 'CREATE_REMINDER' },
-  { match: /\breminder\b.*\b(lagao|laga\s*do|set\s*karo|add\s*karo|banao|create)\b/i, action: 'CREATE_REMINDER' },
-  { match: /\b(lagao|laga\s*do|set\s*karo|add\s*karo|banao|create)\b.*\breminder\b/i, action: 'CREATE_REMINDER' },
-  { match: /\b(kal|aaj|tomorrow|today)\b.*\bbaje\b.*\b(reminder|yaad)\b/i, action: 'CREATE_REMINDER' },
-  // Open notifications (broad — must come last in this block)
-  { match: /\b(notification|notifications|notif|alerts|announcements?)\b\s*(kholo|kholna|kholiye|dikhao|dekhao|open|show|view)?/i, action: 'OPEN_NOTIFICATIONS' },
-  { match: /(open|show|view)\s+(my\s+)?(notification|notifications|notif|alerts|announcements?)/i, action: 'OPEN_NOTIFICATIONS' },
+  // ── Ask AI (explicit invocations only — free-form prompt matching is
+  //    handled by the deterministic askAiMatcher inside handleSend). ────────
+  { match: /\b(more prompts|show (all )?(ask\s*ai\s*)?prompts?)\b/i,                      action: 'ASK_AI_MORE_PROMPTS' },
+  { match: /\b(open|launch|kholo|start)\s+ask\s*ai\b|\bask\s*ai\b\s*$|^ask\s*ai\b|\bsmart\s+assistant\b|\bask\s+swiftchat\b/i, action: 'OPEN_ASK_AI' },
+
+  // ── Notifications / reminders (must precede the broader announcement /
+  //    broadcast keywords used by other modules). ───────────────────────────
+  { match: /\bmark\s+(?:all\s+)?(?:notification|notif)s?\s+(?:as\s+)?read\b/i, action: 'MARK_ALL_NOTIFICATIONS_READ' },
+  { match: /\b(?:create|send|broadcast|publish)\s+(?:a\s+)?(?:notification|broadcast|announcement)\b|\bnotification\s+bhejo\b|\bbroadcast\s+bhejo\b|\bannouncement\s+bhejo\b/i, action: 'CREATE_BROADCAST_NOTIFICATION' },
+  // Reminder phrasing: "add reminder", "set reminder", "kal 10 baje reminder lagao", "remind me…"
+  { match: /\b(?:add|set|create|new)\s+(?:a\s+)?reminder\b|\bremind\s+me\b|\breminder\s+(?:lagao|add karo|set karo|laga do)\b/i, action: 'CREATE_REMINDER' },
+  // Open notifications inbox.
+  { match: /\b(?:show|open|view|kholo)\b.*\b(?:notification|notif|alert|inbox|bell)s?\b|\bnotification(?:s)?\s+kholo\b|\b(?:my|mere)\s+(?:notification|alert|reminder)s?\b/i, action: 'OPEN_NOTIFICATIONS' },
 
   // ── Parent alerts (must precede `absent` so combined phrasings route here) ─
   { match: /parent\s*alert|notify\s*parent|whatsapp\s*alert|sms\s*alert|parent\s*ko\s*bhejo/i, action: 'SEND_PARENT_ALERT' },
@@ -80,6 +78,37 @@ const CLASS_RE = /\bclass\s*(\d{1,2})\b|\bgrade\s*(\d{1,2})\b|\bstd\s*(\d{1,2})\
 const PAYMENT_FILTER_RE = /\b(failed|success|pending|all)\s*payment/i
 const SCHEME_RE = /\b(namo\s*saraswati|saraswati|ns)\b|\b(namo\s*lakshmi|namo\s*laxmi|lakshmi|nl)\b/i
 
+// Broadcast-target detection. Maps phrases → notification target tokens.
+const BROADCAST_TARGET_HINTS = [
+  { rx: /\b(all\s+users?|sab\s*ko|sabhi\s*ko|everyone|sabko)\b/i, token: 'all' },
+  { rx: /\bteachers?\b|शिक्षकों|শিক্ষকদের/i,                       token: 'teacher' },
+  { rx: /\bprincipals?\b|प्रधानाचार्य|মুখ্যশিক্ষক/i,                token: 'principal' },
+  { rx: /\bdeos?\b|district\s+education/i,                         token: 'deo' },
+  { rx: /\bstate(?:\s+secretary)?\b/i,                             token: 'state' },
+  { rx: /\bpfms\b|payment\s+officer/i,                             token: 'pfms' },
+  { rx: /\bcrcs?\b|cluster\s+approver/i,                           token: 'crc' },
+  { rx: /\bbrcs?\b|block\s+resource/i,                             token: 'brc' },
+  { rx: /\bnot\s+state|non-state/i,                                token: 'not_state' },
+]
+
+const BROADCAST_CATEGORY_HINTS = [
+  { rx: /\bnamo\s*(?:lakshmi|laxmi|saraswati)\b|\bdeadline\b/i, id: 'namo_deadline' },
+  { rx: /\bxamta\b/i,                                            id: 'xamta_data_entry' },
+  { rx: /\bholiday\b|chhutti|छुट्टी/i,                           id: 'holiday' },
+  { rx: /\bpayment(?:s)?\b|pfms/i,                                id: 'payment' },
+  { rx: /\battendance\b|haajri/i,                                 id: 'attendance' },
+  { rx: /\bannouncement\b|important\b/i,                          id: 'announcement' },
+]
+
+// Very rough natural-language time hint: "kal 10 baje", "tomorrow at 5pm",
+// "tonight 8pm". We only return a hint string here; the form uses a date+time
+// picker so the user confirms. Empty when nothing extractable.
+const TIME_HINTS = [
+  /\b(?:tomorrow|kal)\b[^.,]*?\b(\d{1,2})(?::(\d{2}))?\s*(am|pm|baje)?/i,
+  /\b(?:today|aaj)\b[^.,]*?\b(\d{1,2})(?::(\d{2}))?\s*(am|pm|baje)?/i,
+  /\b(\d{1,2})(?::(\d{2}))?\s*(am|pm|baje)\b/i,
+]
+
 export function extractEntities(text) {
   const entities = {}
   if (!text) return entities
@@ -101,6 +130,29 @@ export function extractEntities(text) {
   if (pm) {
     entities.paymentFilter = pm[1].toLowerCase()
   }
+
+  // Broadcast targets — preserve order, dedupe.
+  const targets = []
+  for (const hint of BROADCAST_TARGET_HINTS) {
+    if (hint.rx.test(text) && !targets.includes(hint.token)) targets.push(hint.token)
+  }
+  if (targets.length) entities.broadcastTargets = targets
+
+  // Broadcast category hint.
+  for (const hint of BROADCAST_CATEGORY_HINTS) {
+    if (hint.rx.test(text)) { entities.broadcastCategory = hint.id; break }
+  }
+
+  // Reminder when-hint — not parsed into a date, only kept as a string the
+  // form will surface to the user.
+  for (const rx of TIME_HINTS) {
+    const m = text.match(rx)
+    if (m) { entities.reminderWhen = m[0]; break }
+  }
+
+  // Reminder title — anything after "remind me to/of" or before "kal/aaj …"
+  const rmt = text.match(/\bremind\s+me\s+(?:to|of|that)?\s+([^.?!]+)/i)
+  if (rmt && rmt[1]) entities.reminderTitle = rmt[1].trim()
 
   // free-form question (used by DigiVritti AI ask) — store the original text
   // so the engine can keyword-match further.

@@ -3,7 +3,6 @@ import { AppProvider, useApp } from './context/AppContext'
 import Toast from './components/Toast'
 import CallOverlay from './components/CallOverlay'
 import CanvasPanel from './canvas/CanvasPanel'
-import NotificationCanvas from './components/notifications/NotificationCanvas'
 import NotificationToast from './components/notifications/NotificationToast'
 
 import SplashPage        from './pages/SplashPage'
@@ -83,7 +82,6 @@ function AppRoutes() {
         ))}
         {call && <CallOverlay />}
         <CanvasPanel />
-        <NotificationCanvas />
         <NotificationToast />
         <Toast />
       </div>

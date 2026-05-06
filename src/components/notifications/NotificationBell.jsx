@@ -1,70 +1,58 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Bell } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
+import { primeAudioOnUserGesture } from '../../notifications/notificationSound'
+import NotificationBadge from './NotificationBadge'
 
-// Icon-button bell with red unread badge. Shakes when `bellShake` ticks
-// up (driven by the scheduler emitting a "due" event in AppContext).
+// Top-bar bell. Owns its own buzz animation + audio-prime on click.
 //
-// Intentionally self-contained: no portal, no global CSS leak. The bell-shake
-// keyframes are inlined as a <style> block scoped by id so we don't need a
-// tailwind config change to ship the animation.
-export default function NotificationBell({ size = 20, className = '', dark = false }) {
-  const { unreadNotifications, openNotificationsCanvas, bellShake, isAuthenticated } = useApp()
-  const [shake, setShake] = useState(false)
+// Animation modes:
+//   • normal     — single 1.2s shake on a fresh due-event.
+//   • urgent     — 3 × 1.2s shakes for high/urgent priority.
+//   • ringing    — infinite shake while a reminder is pending acknowledgement.
+//                  Cleared by clicking the bell or dismissing the toast.
+export default function NotificationBell({ className = '' }) {
+  const {
+    unreadNotifications,
+    openNotificationsCanvas,
+    notificationsBuzzKey,
+    notificationsBuzzUrgent,
+    notificationsRinging,
+  } = useApp()
+
+  const [animClass, setAnimClass] = useState('')
+  const lastKey = useRef(null)
 
   useEffect(() => {
-    if (!bellShake) return
-    setShake(true)
-    const t = setTimeout(() => setShake(false), 1400)
+    if (!notificationsBuzzKey) return
+    if (lastKey.current === notificationsBuzzKey) return
+    lastKey.current = notificationsBuzzKey
+    setAnimClass(notificationsBuzzUrgent ? 'notification-bell--buzz-urgent' : 'notification-bell--buzz')
+    const dur = notificationsBuzzUrgent ? 3700 : 1300
+    const t = setTimeout(() => setAnimClass(''), dur)
     return () => clearTimeout(t)
-  }, [bellShake])
+  }, [notificationsBuzzKey, notificationsBuzzUrgent])
 
-  if (!isAuthenticated) return null
-
-  const count = unreadNotifications
-  const badge = count > 99 ? '99+' : String(count)
-
-  const btnCls = dark
-    ? 'text-white active:bg-white/15'
-    : 'text-txt-primary active:bg-surface-secondary'
+  // While a reminder is unacknowledged, override the one-shot animation with
+  // an infinite shake so the icon really does keep moving right and left.
+  const effectiveAnim = notificationsRinging ? 'notification-bell--ringing' : animClass
 
   return (
-    <>
-      <style>{`
-        @keyframes notif-bell-buzz {
-          0%   { transform: rotate(0deg); }
-          15%  { transform: rotate(14deg); }
-          30%  { transform: rotate(-12deg); }
-          45%  { transform: rotate(10deg); }
-          60%  { transform: rotate(-8deg); }
-          75%  { transform: rotate(5deg); }
-          100% { transform: rotate(0deg); }
-        }
-      `}</style>
-      <button
-        onClick={openNotificationsCanvas}
-        className={`relative w-11 h-11 flex items-center justify-center rounded-full transition-colors ${btnCls} ${className}`}
-        aria-label={`Notifications${count ? `, ${count} unread` : ''}`}
-        title={count ? `${count} unread notification${count === 1 ? '' : 's'}` : 'Notifications'}
-      >
-        <span
-          className="inline-flex"
-          style={{
-            transformOrigin: '50% 0%',
-            animation: shake ? 'notif-bell-buzz 0.6s ease-in-out 2' : 'none',
-          }}
-        >
-          <Bell size={size} />
-        </span>
-        {count > 0 && (
-          <span
-            className="absolute top-1.5 right-1.5 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold text-white flex items-center justify-center pointer-events-none"
-            style={{ background: '#E53935', boxShadow: '0 0 0 2px #fff' }}
-          >
-            {badge}
-          </span>
-        )}
-      </button>
-    </>
+    <button
+      onClick={() => {
+        primeAudioOnUserGesture()
+        openNotificationsCanvas()
+      }}
+      aria-label={notificationsRinging ? 'Reminder ringing — open notifications' : 'Notifications'}
+      className={`relative w-9 h-9 flex items-center justify-center rounded-full transition-colors ${
+        notificationsRinging
+          ? 'bg-warn-light hover:bg-[#FFE082]'
+          : 'hover:bg-[#ECECEC] active:bg-[#DDD]'
+      } ${className}`}
+      style={{ color: notificationsRinging ? '#9A6500' : '#7383A5' }}
+    >
+      <Bell size={18} className={effectiveAnim} />
+      <NotificationBadge count={unreadNotifications} />
+    </button>
   )
 }

@@ -7,12 +7,20 @@ import DataEntryCanvas   from './modules/DataEntryCanvas'
 import PDFCanvas         from './modules/PDFCanvas'
 import ReportCanvas      from './modules/ReportCanvas'
 import DigiVrittiCanvas  from './modules/DigiVrittiCanvas'
-import KnowledgeCanvas   from './modules/KnowledgeCanvas'
+import InterventionCanvas from './modules/InterventionCanvas'
+import LessonPlanCanvas        from './modules/LessonPlanCanvas'
+import WorksheetTemplateCanvas from './modules/WorksheetTemplateCanvas'
+import WorksheetEditorCanvas   from './modules/WorksheetEditorCanvas'
+import StudentRosterCanvas     from './modules/StudentRosterCanvas'
+import AtRiskStudentsCanvas    from './modules/AtRiskStudentsCanvas'
+import ClassReportCanvas       from './modules/ClassReportCanvas'
+import KnowledgeCanvas         from './modules/KnowledgeCanvas'
 // Legacy canvas tabs (fallback for old chatId-based canvas)
 import RichTextEditor    from './RichTextEditor'
 import DataForm          from './DataForm'
 import ActivityLog       from './ActivityLog'
 import ExportOptions     from './ExportOptions'
+import NotificationCanvas from '../components/notifications/NotificationCanvas'
 
 // Module type → metadata
 const SCHEME_TITLE = {
@@ -24,6 +32,14 @@ const MODULE_META = {
   attendance:  { icon: '📅', title: ctx => `Attendance — ${ctx.classId || 'Class 6-B'}` },
   dashboard:   { icon: '📊', title: ctx => ctx.scope === 'district' ? 'District Dashboard' : ctx.scope === 'school' ? 'School Dashboard' : 'Class Dashboard' },
   'data-entry':{ icon: '👤', title: () => 'Student Data Entry' },
+  intervention:{ icon: '🎯', title: ctx => ctx.groupName || 'Intervention Group' },
+  'lesson-plan':         { icon: '📚', title: ctx => ctx.title || `Lesson Plan${ctx.topic ? ` — ${ctx.topic}` : ''}` },
+  'worksheet-template':  { icon: '🎨', title: () => 'Choose a Design Template' },
+  'worksheet-editor':    { icon: '📝', title: ctx => ctx.title || `Worksheet${ctx.topic ? ` — ${ctx.topic}` : ''}` },
+  'student-roster':      { icon: '👥', title: ctx => `${ctx.classLabel || `Class ${ctx.grade || 8}`} · Students` },
+  'at-risk-students':    { icon: '⚠️', title: () => 'At-Risk Students' },
+  'class-report':        { icon: '📊', title: ctx => `${ctx.classLabel || `Class ${ctx.grade || 8}`} · Class Report` },
+  knowledge:             { icon: '📚', title: ctx => ctx.title || 'Knowledge' },
   pdf:         { icon: '📄', title: () => 'Generate PDF' },
   report:      { icon: '📋', title: ctx => ctx.scope === 'district' ? 'District Report' : 'Class Report' },
   digivritti:  { icon: '🌸', title: ctx => {
@@ -37,13 +53,6 @@ const MODULE_META = {
     if (ctx.view === 'analytics')      return `DigiVritti · State Analytics`
     return `DigiVritti${scheme} · Applications`
   } },
-  knowledge: {
-    icon: '📚',
-    title: ctx => {
-      const pretty = String(ctx.source || '').replace(/\.md$/i, '').replace(/[_-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-      return ctx.section ? `${pretty} · ${ctx.section}` : pretty
-    },
-  },
 }
 
 const LEGACY_TABS = [
@@ -60,8 +69,27 @@ export default function CanvasPanel() {
   if (!canvasOpen) return null
 
   const ctx = canvasContext || {}
+  const isNotifications = ctx.type === 'notifications'
   const isModule = !!MODULE_META[ctx.type]
   const meta = isModule ? MODULE_META[ctx.type] : null
+
+  // Notifications canvas owns its own header — keep this panel a thin shell.
+  if (isNotifications) {
+    return (
+      <>
+        <div className="absolute inset-0 bg-black/25 z-40" onClick={closeCanvas} />
+        <div className="absolute inset-y-0 right-0 z-50 flex flex-col bg-white animate-canvas-slide overflow-hidden border-l border-bdr-light shadow-canvas
+                        w-full md:w-[60%] lg:w-[480px] xl:w-[520px] max-w-full">
+          <NotificationCanvas
+            initialView={ctx.view || 'list'}
+            initialBroadcastPrefill={ctx.broadcastPrefill || null}
+            initialReminderPrefill={ctx.reminderPrefill || null}
+            onClose={closeCanvas}
+          />
+        </div>
+      </>
+    )
+  }
 
   return (
     <>
@@ -146,10 +174,17 @@ export default function CanvasPanel() {
               {ctx.type === 'attendance'  && <AttendanceCanvas  context={ctx} />}
               {ctx.type === 'dashboard'   && <DashboardCanvas   context={ctx} />}
               {ctx.type === 'data-entry'  && <DataEntryCanvas   context={ctx} />}
+              {ctx.type === 'intervention'&& <InterventionCanvas context={ctx} />}
+              {ctx.type === 'lesson-plan'        && <LessonPlanCanvas        context={ctx} />}
+              {ctx.type === 'worksheet-template' && <WorksheetTemplateCanvas context={ctx} />}
+              {ctx.type === 'worksheet-editor'   && <WorksheetEditorCanvas   context={ctx} />}
+              {ctx.type === 'student-roster'     && <StudentRosterCanvas     context={ctx} />}
+              {ctx.type === 'at-risk-students'   && <AtRiskStudentsCanvas    context={ctx} />}
+              {ctx.type === 'class-report'       && <ClassReportCanvas       context={ctx} />}
+              {ctx.type === 'knowledge'          && <KnowledgeCanvas         context={ctx} />}
               {ctx.type === 'pdf'         && <PDFCanvas         context={ctx} />}
               {ctx.type === 'report'      && <ReportCanvas      context={ctx} />}
               {ctx.type === 'digivritti'  && <DigiVrittiCanvas  context={ctx} />}
-              {ctx.type === 'knowledge'   && <KnowledgeCanvas   context={ctx} />}
             </>
           ) : (
             <>

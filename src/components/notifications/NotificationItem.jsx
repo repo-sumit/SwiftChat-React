@@ -1,133 +1,103 @@
 import React from 'react'
-import { Trash2, ChevronRight } from 'lucide-react'
-import { useApp } from '../../context/AppContext'
-import { priorityClass } from '../../notifications/notificationTypes'
+import { Trash2, ArrowRight } from 'lucide-react'
+import { categoryLabel, priorityTone } from '../../notifications/notificationTypes'
 
-function timeAgo(iso) {
+function relativeTime(iso) {
   if (!iso) return ''
-  const t = new Date(iso).getTime()
+  const t = Date.parse(iso)
+  if (!Number.isFinite(t)) return ''
   const diff = Date.now() - t
-  if (diff < 0) {
-    // Future scheduled — show date/time.
-    return new Date(iso).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
-  }
-  const m = Math.floor(diff / 60000)
-  if (m < 1)   return 'just now'
-  if (m < 60)  return `${m}m ago`
-  const h = Math.floor(m / 60)
-  if (h < 24)  return `${h}h ago`
-  const d = Math.floor(h / 24)
-  if (d < 7)   return `${d}d ago`
-  return new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
+  const min = Math.round(diff / 60000)
+  if (min < 1) return 'just now'
+  if (min < 60) return `${min} min ago`
+  const hr = Math.round(min / 60)
+  if (hr < 24) return `${hr} hr ago`
+  const d = Math.round(hr / 24)
+  if (d < 7) return `${d}d ago`
+  return new Date(iso).toLocaleDateString()
 }
 
-const TYPE_LABEL = { broadcast: 'Broadcast', reminder: 'Reminder', system: 'System' }
-
-export default function NotificationItem({ notification }) {
-  const { userId, markNotificationRead, dismissNotification, triggerNotificationAction, closeNotificationsCanvas } = useApp()
-  const n = notification
-  const isUnread = !!userId && !(n.readBy || []).includes(userId)
-  const pri      = priorityClass(n.priority)
-  const typeLbl  = TYPE_LABEL[n.type] || 'Notification'
-
-  const handleClick = () => {
-    if (isUnread) markNotificationRead(n.id)
-  }
-
-  const handleAction = (e) => {
-    e.stopPropagation()
-    if (isUnread) markNotificationRead(n.id)
-    const handled = triggerNotificationAction(n)
-    if (handled) closeNotificationsCanvas()
-  }
-
-  const handleDismiss = (e) => {
-    e.stopPropagation()
-    dismissNotification(n.id)
-  }
-
+export default function NotificationItem({
+  notification,
+  unread,
+  onMarkRead,
+  onDismiss,
+  onAction,
+}) {
+  const tone = priorityTone(notification.priority)
+  const ts = notification.scheduledAt || notification.deliveredAt || notification.createdAt
   return (
     <div
-      onClick={handleClick}
-      className={`relative px-4 py-3 border-b border-bdr-light cursor-pointer transition-colors ${
-        isUnread ? 'bg-primary-light/40' : 'bg-white'
-      } active:bg-surface-secondary`}
+      className={`relative px-4 py-3 border-b border-bdr-light transition-colors ${
+        unread ? 'bg-primary-light/40' : 'bg-white'
+      }`}
     >
-      {/* Left blue accent for unread */}
-      {isUnread && (
-        <span className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />
+      {unread && (
+        <span
+          className="absolute left-1.5 top-4 w-1.5 h-1.5 rounded-full bg-primary"
+          aria-label="Unread"
+        />
       )}
 
-      <div className="flex items-start gap-2.5">
-        {/* Priority dot */}
-        <span
-          className="mt-1.5 w-2 h-2 rounded-full flex-shrink-0"
-          style={{ background: pri.dot }}
-          aria-hidden
-        />
-
+      <div className="flex items-start gap-2 mb-1.5">
         <div className="flex-1 min-w-0">
-          {/* Title row */}
-          <div className="flex items-start gap-2">
-            <div className={`text-[13.5px] leading-5 ${isUnread ? 'font-bold text-txt-primary' : 'font-semibold text-txt-primary'} truncate`}>
-              {n.title}
-            </div>
-            <div className="ml-auto text-[10.5px] text-txt-secondary whitespace-nowrap pl-2">
-              {timeAgo(n.scheduledAt || n.createdAt)}
-            </div>
-          </div>
-
-          {/* Message */}
-          {n.message && (
-            <div className="text-[12.5px] text-txt-secondary mt-0.5 leading-5 line-clamp-2">
-              {n.message}
-            </div>
-          )}
-
-          {/* Chips */}
-          <div className="flex flex-wrap items-center gap-1.5 mt-2">
-            <span
-              className="px-2 py-0.5 rounded-full text-[10px] font-semibold"
-              style={{ background: pri.bg, color: pri.fg }}
-            >
-              {pri.label}
-            </span>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-surface-secondary text-txt-secondary">
-              {typeLbl}
-            </span>
-            {n.category && n.category !== 'General' && (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-surface-secondary text-txt-secondary">
-                {n.category}
-              </span>
-            )}
-            {n.module && (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-primary-light text-primary">
-                {n.module}
-              </span>
-            )}
-          </div>
-
-          {/* Actions row */}
-          <div className="flex items-center gap-2 mt-2.5">
-            {n.action && (
-              <button
-                onClick={handleAction}
-                className="px-3 py-1.5 rounded-full text-[11.5px] font-bold border-[1.5px] border-primary text-primary bg-white active:bg-primary active:text-white transition-colors flex items-center gap-1"
-              >
-                {n.action.label || 'Open'}
-                <ChevronRight size={13} />
-              </button>
-            )}
-            <button
-              onClick={handleDismiss}
-              className="ml-auto p-1.5 rounded-full text-txt-secondary active:bg-surface-secondary"
-              aria-label="Dismiss"
-              title="Dismiss"
-            >
-              <Trash2 size={14} />
-            </button>
+          <div className="text-[13px] font-semibold text-txt-primary leading-snug pr-2">
+            {notification.title}
           </div>
         </div>
+        <span
+          className="flex-shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full"
+          style={{ background: tone.bg, color: tone.fg }}
+        >
+          {tone.label}
+        </span>
+      </div>
+
+      {notification.message && (
+        <div className="text-[12px] text-txt-secondary leading-relaxed mb-2 whitespace-pre-wrap break-words">
+          {notification.message}
+        </div>
+      )}
+
+      <div className="flex items-center gap-1.5 flex-wrap mb-2">
+        {notification.category && (
+          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-surface-secondary text-txt-secondary">
+            {categoryLabel(notification.category)}
+          </span>
+        )}
+        {notification.module && (
+          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-surface-secondary text-txt-secondary">
+            {String(notification.module).toUpperCase()}
+          </span>
+        )}
+        <span className="text-[10px] text-txt-tertiary ml-auto">{relativeTime(ts)}</span>
+      </div>
+
+      <div className="flex items-center gap-2">
+        {notification.action?.type && (
+          <button
+            onClick={() => onAction?.(notification)}
+            className="flex items-center gap-1 text-[11.5px] font-semibold text-white bg-primary hover:bg-primary-dark px-3 py-1.5 rounded-full transition-colors"
+          >
+            {notification.action.label || 'Open'}
+            <ArrowRight size={12} />
+          </button>
+        )}
+        {unread && (
+          <button
+            onClick={() => onMarkRead?.(notification)}
+            className="text-[11.5px] font-semibold text-primary hover:underline px-1"
+          >
+            Mark read
+          </button>
+        )}
+        <button
+          onClick={() => onDismiss?.(notification)}
+          className="ml-auto w-7 h-7 flex items-center justify-center rounded-full text-txt-tertiary hover:bg-surface-secondary hover:text-danger transition-colors"
+          aria-label="Dismiss notification"
+        >
+          <Trash2 size={13} />
+        </button>
       </div>
     </div>
   )

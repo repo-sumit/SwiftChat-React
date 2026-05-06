@@ -2,23 +2,39 @@ import React from 'react'
 import { BellOff } from 'lucide-react'
 import NotificationItem from './NotificationItem'
 
-export default function NotificationList({ items }) {
-  if (!items || items.length === 0) {
+export default function NotificationList({
+  notifications = [],
+  isUnread,
+  onMarkRead,
+  onDismiss,
+  onAction,
+  emptyTitle = 'No notifications',
+  emptySubtitle = 'You’re all caught up.',
+}) {
+  if (!notifications.length) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-center px-6 py-12">
-        <div className="w-14 h-14 rounded-full bg-primary-light flex items-center justify-center text-primary mb-3">
-          <BellOff size={24} />
+      <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+        <div className="w-12 h-12 rounded-full bg-surface-secondary flex items-center justify-center mb-3 text-txt-tertiary">
+          <BellOff size={20} />
         </div>
-        <div className="text-[14px] font-bold text-txt-primary">You're all caught up</div>
-        <div className="text-[12px] text-txt-secondary mt-1 max-w-xs">
-          No notifications in this view. Reminders you set will appear here when they're due.
-        </div>
+        <div className="text-[14px] font-semibold text-txt-primary">{emptyTitle}</div>
+        <div className="text-[12px] text-txt-secondary mt-1 max-w-xs">{emptySubtitle}</div>
       </div>
     )
   }
+
   return (
-    <div className="divide-y divide-bdr-light">
-      {items.map(n => <NotificationItem key={n.id} notification={n} />)}
+    <div>
+      {notifications.map(n => (
+        <NotificationItem
+          key={n.id}
+          notification={n}
+          unread={!!isUnread?.(n)}
+          onMarkRead={onMarkRead}
+          onDismiss={onDismiss}
+          onAction={onAction}
+        />
+      ))}
     </div>
   )
 }

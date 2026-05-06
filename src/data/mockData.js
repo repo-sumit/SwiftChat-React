@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// VSK 3.0 Mock Data — Gujarat Education
+// VSK Gujarat Mock Data — Gujarat Education
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const SCHOOL_INFO = {

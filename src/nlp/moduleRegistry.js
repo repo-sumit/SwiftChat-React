@@ -98,6 +98,42 @@ export const MODULES = [
     fallbackPrompt: 'Which report would you like — student, class, or scheme?',
   },
   {
+    id: 'ask_ai',
+    label: 'Ask AI',
+    aliases: [
+      'ask ai', 'askai', 'ai', 'smart assistant', 'ask swiftchat',
+      'help me decide', 'kya karna chahiye', 'su karu', 'batao kya karu',
+      'ask ai kholo', 'ai assistant', 'smart actions', 'next best action',
+      'ai suggestions', 'पूछो ai', 'पूछो एआई', 'ai से पूछो',
+    ],
+    allowedRoles: ['teacher', 'principal', 'crc', 'deo', 'state_secretary', 'pfms'],
+    actions: [
+      'OPEN_ASK_AI', 'ASK_AI_MORE_PROMPTS', 'ASK_AI_RUN_PROMPT',
+      'ASK_AI_OPEN_RECOMMENDED_ACTION',
+    ],
+    canvasView: null,
+    fallbackPrompt: 'Open Ask AI, see all prompts, or run a specific Ask AI prompt?',
+  },
+  {
+    id: 'notifications',
+    label: 'Notifications',
+    aliases: [
+      'notification', 'notifications', 'notif', 'inbox', 'reminder',
+      'reminders', 'alerts', 'broadcast', 'broadcasts', 'announce',
+      'announcement', 'announcements', 'bell',
+      'notification kholo', 'notif kholo', 'reminder lagao', 'reminder set karo',
+      'reminder add karo', 'notification bhejo', 'broadcast bhejo',
+      'सूचना', 'नोटिफिकेशन', 'સૂચના', 'યાદ',
+    ],
+    allowedRoles: ['teacher', 'principal', 'crc', 'deo', 'state_secretary', 'pfms', 'parent', 'brc'],
+    actions: [
+      'OPEN_NOTIFICATIONS', 'CREATE_REMINDER',
+      'CREATE_BROADCAST_NOTIFICATION', 'MARK_ALL_NOTIFICATIONS_READ',
+    ],
+    canvasView: null,
+    fallbackPrompt: 'Open notifications, add a reminder, or create a broadcast?',
+  },
+  {
     id: 'parent_alerts',
     label: 'Parent Alerts',
     aliases: [
@@ -109,25 +145,6 @@ export const MODULES = [
     actions: ['SEND_PARENT_ALERT'],
     canvasView: null,
     fallbackPrompt: 'Which class or students should receive the alert?',
-  },
-  {
-    id: 'notifications',
-    label: 'Notifications & Reminders',
-    aliases: [
-      'notification', 'notifications', 'notif',
-      'reminder', 'reminders', 'remind me', 'remind',
-      'alerts', 'announcement', 'broadcast',
-      'notification kholo', 'notification dikhao', 'reminder lagao',
-      'reminder add karo', 'reminder set karo', 'notif kholo',
-      'सूचना', 'रिमाइंडर', 'સૂચના',
-    ],
-    allowedRoles: ['teacher', 'principal', 'crc', 'deo', 'state_secretary', 'pfms', 'parent'],
-    actions: [
-      'OPEN_NOTIFICATIONS', 'CREATE_REMINDER',
-      'CREATE_BROADCAST_NOTIFICATION', 'MARK_ALL_NOTIFICATIONS_READ',
-    ],
-    canvasView: { type: 'notifications' },
-    fallbackPrompt: 'Open notifications, add a reminder, or create a broadcast?',
   },
 ]
 
